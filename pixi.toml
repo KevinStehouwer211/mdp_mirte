@@ -1,7 +1,7 @@
 [workspace]
 channels = ["robostack-humble", "conda-forge"]
 name = "ro47007_mirte_ws"
-platforms = ["linux-64", "osx-arm64"]
+platforms = ["linux-64"]
 version = "0.1.1"
 
 [tasks]
