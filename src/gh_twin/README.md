@@ -3,41 +3,6 @@
 ## Description
 Greenhouse digital twin generation using autonomous robot
 
-
-## Installation
-
-Create a ROS workspace ~/ros2_ws/
-```bash
-mkdir -p ~/ros2_ws/src
-```
-
-Installation of the Mirte Packages in src folder of the workspace using the instructions in [Mirte Documentation](https://docs.mirte.org/0.2.0/doc/simulation/install_simulation.html). As mentioned in the documentation, it would be better to remove the unused pacakges.
-
-Installation of gh_twin
-```bash
-cd ~/ros2_ws/src
-git clone git@gitlab.tudelft.nl:cor/ro47007/2026/group_17/gh_twin.git
-cd ~/ros2_ws
-colcon build --symlink-install
-```
-
-Packages required for SLAM
-```bash
-sudo apt install ros-$ROS_DISTRO-slam-toolbox
-```
-
-Packages required for navigation
-```bash
-sudo apt install ros-humble-slam-toolbox
-sudo apt install ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-nav2-bringup
-sudo apt install xterm
-```
-
-Packages required for HMI
-
-```bash
-pip install nicegui
-```
 ## Launching the Simulation
 
 Launching gazebo and robot model
