@@ -1,7 +1,10 @@
 # pixi environments
 .pixi/*
 !.pixi/config.toml
-src/*
+src/clearpath_mecanum_drive_controller
+src/gazebo_grasp_fix
+src/mirte-gazebo
+src/mirte-ros-packages
 build
 install
 log
