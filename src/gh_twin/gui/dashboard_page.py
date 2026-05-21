@@ -103,10 +103,10 @@ beds = [
 ]
             
 plants = [
-    {'id': 'P1', 'x': 170, 'y': 105, 'bloomed': True},
-    {'id': 'P2', 'x': 470, 'y': 485, 'bloomed': True},
-    {'id': 'P3', 'x': 770, 'y': 105, 'bloomed': False},
-    {'id': 'P4', 'x': 1070, 'y': 105, 'bloomed': False},
+    {'id': 'P1', 'x': 170, 'y': 105, 'bloomed': True, 'color': 'White'},
+    {'id': 'P2', 'x': 470, 'y': 485, 'bloomed': True, 'color': 'Pink'},
+    {'id': 'P3', 'x': 770, 'y': 105, 'bloomed': False, 'color': 'Red'},
+    {'id': 'P4', 'x': 1070, 'y': 105, 'bloomed': False, 'color': 'White'},
 ]
 
 bugs = [
@@ -400,30 +400,33 @@ def main_page():
                 dot_color = '#39ff14' if plant['bloomed'] else "#fbff0c"
                 status_text = 'Bloomed' if plant['bloomed'] else 'Not Bloomed'
                 pid = plant['id']
-
+                filename = plant['color'].lower() + '_flower.png'
+                animation_class = 'blooming' if plant['bloomed'] else ''
+                
                 with ui.element('div').style(
                     f'position:absolute;'
                     f'left:{plant["x"]}px;'
                     f'top:{plant["y"]}px;'
                     f'z-index:10;'
-                ).classes('entity plant-dot'):
-
-                    dot = ui.element('div').style(
-                        f'width:14px; height:14px;'
-                        f'border-radius:50%;'
-                        f'background:{dot_color};'
-                        f'cursor:pointer;'
-                        f'transition: transform 0.2s ease;'
-                    )
-
+                    f'overflow:visible;'
+                ).classes('entity'):
+                    
+                    ui.image(filename).style(
+                        'width:35px;'
+                        'height:35px;'
+                        'cursor:pointer;'
+                        'background: transparent;'
+                        'transition: transform 0.2s ease;'
+                    ).classes(animation_class)
+                    
                     with ui.element('div').classes('tooltip').props('pointer-events-auto'):
                         
-                        ui.html(f'<b>Plant {pid}</b><br>Status: {status_text}')
+                            ui.html(f'<b>Plant {pid}</b><br>Status: {status_text}')
 
-                        ui.button(
-                            'Go To Position',
-                            on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
-                        ).classes('tooltip-btn')
+                            ui.button(
+                                'Go To Position',
+                                on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
+                            ).classes('tooltip-btn')
 
 
             # Plotting bugs
