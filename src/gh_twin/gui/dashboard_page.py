@@ -18,6 +18,7 @@ import cv2
 import base64
 
 import random
+import math
 
 
 
@@ -49,7 +50,7 @@ OPERATING_MODE = {
     5: 'Shutdown',
 }
 
-teleop_topic = '/teleop_cmd'
+teleop_topic = '/mirte_base_controller/cmd_vel_unstamped'
 
 ######################################################################################
 
@@ -63,10 +64,11 @@ camera = {
     'frame':   None,   # latest JPEG bytes
 }
 
-# Current robot position
+# Current robot pose
 robot_pos = {
     'x': 50.0,   # normalized position in %
     'y': 50.0,
+    'theta': 0.0, # normalized orientation in %
 }
 
 # Goal robot position
@@ -174,6 +176,7 @@ class ROS2Interface(Node):
 
         ros_x = msg.pose.pose.position.x
         ros_y = msg.pose.pose.position.y
+        ros_rot = msg.pose.pose.orientation
 
         normalized_x = (
             ros_x + MAP_WIDTH_METERS / 2
@@ -186,6 +189,7 @@ class ROS2Interface(Node):
         # Write into the shared dict
         robot_pos['x'] = normalized_x * 100
         robot_pos['y'] = (1 - normalized_y) * 100
+        robot_pos['theta'] = math.atan2(ros_rot.z, ros_rot.w) * 2 * (180 / math.pi)  # Convert to degrees
         
     def switch_topic(self, topic: str):
         if self.camera_sub is not None:
@@ -222,13 +226,18 @@ class ROS2Interface(Node):
         global current_operating_mode
         current_operating_mode = OPERATING_MODE.get(mode, "Unknown")
         self.operating_mode_pub.publish(Int32(data=mode))
-        ui.notify(f'Set operating mode to {OPERATING_MODE.get(mode, "Unknown")}')
         
-    def send_teleop_command(self, linear_x=0.0, angular_z=0.0):
+    def send_teleop_command(self, command: str):
         cmd = Twist()
-        cmd.linear.x = linear_x
-        cmd.angular.z = angular_z
-        self.teleop_pub.publish(cmd)    
+        if command == 'f':
+            cmd.linear.x = 0.5
+        elif command == 'b':
+            cmd.linear.x = -0.5
+        elif command == 'r':
+            cmd.angular.z = -0.5
+        elif command == 'l':
+            cmd.angular.z = 0.5
+        self.teleop_pub.publish(cmd)
 
 
 # ============================================================
@@ -274,33 +283,48 @@ def main_page():
     # LAYOUT
     # --------------------------------------------------------
     ui.query('body').classes(add='light-theme')
-    
-    
 
     with ui.element('div').classes('main-container'):
-
+        
+        
+        
         with ui.card().classes('side-card light-card items-stretch'):
             ui.label('Robot Status').classes('title text-left')
             ui.separator()
             ui.label('Operating Mode').classes('text-lg')
             mode_display = ui.label('No Mode Selected').style('font-size:12px; color:grey;')
+            teleop_display = ui.label('').classes('whitespace-pre-line').style('font-size:15px')
+            
             
             def set_mode(label, message):
                 mode_display.set_text(label)
                 ros2_interface.set_operating_mode(list(OPERATING_MODE.keys())[list(OPERATING_MODE.values()).index(label)])
+                if current_operating_mode == "Manual Mode":
+                    teleop_display.set_text('F: Move Forward\nB: Move Backward\nR: Rotate Right\nL: Rotate Left')
+                else:
+                    teleop_display.set_text('')
+                ui.notify(message)
+                
             
             
             # Handling keyboard teleop in manual mode    
             def handle_key(e: events.KeyEventArguments):
+                command = None
                 if current_operating_mode == "Manual Mode":
-                    if e.key.arrow_left:
-                        ui.notify('Going left')
-                    elif e.key.arrow_right:
-                        ui.notify('Going right')
-                    elif e.key.arrow_up:
-                        ui.notify('Going up')
-                    elif e.key.arrow_down:
-                        ui.notify('Going down')
+                    if e.key=='f' and e.action.keyup:
+                        command = 'f'
+                        ui.notify('Going forward')
+                    elif e.key=='b' and e.action.keyup:
+                        command = 'b'
+                        ui.notify('Going backward')
+                    elif e.key=='r' and e.action.keyup:
+                        command = 'r'
+                        ui.notify('Rotating right')
+                    elif e.key=='l' and e.action.keyup:
+                        command = 'l'
+                        ui.notify('Rotating left')
+                    ros2_interface.send_teleop_command(command)
+
                     
             keyboard = ui.keyboard(on_key=handle_key)
                 
@@ -397,7 +421,6 @@ def main_page():
             # Plotting plants
 
             for plant in plants:
-                dot_color = '#39ff14' if plant['bloomed'] else "#fbff0c"
                 status_text = 'Bloomed' if plant['bloomed'] else 'Not Bloomed'
                 pid = plant['id']
                 filename = plant['color'].lower() + '_flower.png'
@@ -422,6 +445,7 @@ def main_page():
                     with ui.element('div').classes('tooltip').props('pointer-events-auto'):
                         
                             ui.html(f'<b>Plant {pid}</b><br>Status: {status_text}')
+                            ui.html(f'Color: {plant["color"]}')
 
                             ui.button(
                                 'Go To Position',
@@ -519,13 +543,19 @@ def main_page():
             # ------------------------------------------------
 
             ui.html('''
-            <div id="robot-marker" class="robot"
-                 style="left:50%; top:50%;">
-                <div class="tooltip" id="robot-tooltip">
-                    <b>Robot</b><br>
-                    <span id="robot-pos">Position: (50.0%, 50.0%)</span>
-                    <button class="tooltip-btn">Pause Mission</button>
-                    <button class="tooltip-btn">Return Home</button>
+            <div
+                id="robot-marker"
+                class="robot"
+                style="
+                    left:50%;
+                    top:50%;
+                ">
+                <div class="tooltip">
+                    <b>Robot</b>
+                    <br>
+                <span id="robot-pos">
+                    Position: (50%, 50%)
+                </span>
                 </div>
             </div>
             ''')
@@ -534,11 +564,13 @@ def main_page():
     def update_robot():
         x = robot_pos['x']
         y = robot_pos['y']
+        theta = robot_pos['theta'] + 90
         ui.run_javascript(f"""
             var el = document.getElementById('robot-marker');
             if (el) {{
                 el.style.left = '{x:.2f}%';
                 el.style.top  = '{y:.2f}%';
+                el.style.transform = 'translate(-50%, -50%) rotate({theta:.1f}deg)';
             }}
             var pos = document.getElementById('robot-pos');
             if (pos) {{
@@ -562,8 +594,10 @@ def main_page():
             chart.options['series'][0]['data'] = data
 
             chart.update()
+            
 
     ui.timer(0.1, update_robot)
     ui.timer(0.1, update_camera)
     ui.timer(0.5, update_chart)
+
 

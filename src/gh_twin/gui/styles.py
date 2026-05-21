@@ -304,9 +304,9 @@ def load_styles():
         position: absolute;
         width: 62px;
         height: 180px;
-        background: #9d0000;
-        border-radius: 14px;
-        border: 4px solid black;
+        background: #92745B;
+        /*border-radius: 14px;*/
+        border: 3px dotted black;
     }
 
     .entity {
@@ -323,17 +323,32 @@ def load_styles():
 
     /* Robot uses CSS custom properties so JS can update
        position without replacing the whole element */
+    
     .robot {
-        position: absolute;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: radial-gradient(circle, #4f7cff, #2142d3);
-        box-shadow: 0 0 24px rgba(33,66,211,0.45);
-        /*border: 4px solid white;*/
-        z-index: 50;
-        /* smooth movement driven by left/top updates */
-        transition: left 0.01s linear, top 0.01s linear;
+
+    position: absolute;
+
+    width: 34px;
+    height: 34px;
+
+    background: #2563eb;
+
+    clip-path: polygon(
+        50% 0%,
+        100% 100%,
+        50% 75%,
+        0% 100%
+    );
+
+    box-shadow:
+        0 0 20px rgba(37,99,235,0.45);
+
+    transition:
+        left 0.05s linear,
+        top 0.05s linear,
+        transform 0.1s linear;
+
+    z-index: 50;
     }
 
     .tooltip {
@@ -371,7 +386,38 @@ def load_styles():
         bottom: 10px;
         font-size: 20px;
         font-weight: bold;
-    }            
+    }
+    
+    /* =========================================================
+    BLOOM ANIMATION FOR PLANTS
+    ========================================================= */
+    
+    @keyframes bloomBlink {
+
+    0% {
+        transform: scale(1);
+        /*box-shadow: 0 0 0px rgba(57,255,20,0.0);*/
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.1);
+        /*box-shadow: 0 0 18px rgba(57,255,20,0.9);*/
+        opacity: 0.75;
+    }
+
+    100% {
+        transform: scale(1);
+        /*box-shadow: 0 0 0px rgba(57,255,20,0.0);*/
+        opacity: 1;
+    }
+    }
+
+    .blooming {
+
+        animation:
+            bloomBlink 1.2s infinite ease-in-out;
+    }        
 
     </style>
     """, shared=True)
