@@ -10,7 +10,7 @@ from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
 
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Twist
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import CompressedImage
 
 from std_msgs.msg import Int32
 from cv_bridge import CvBridge
@@ -26,8 +26,9 @@ MAP_WIDTH_METERS  = 10.0
 MAP_HEIGHT_METERS = 5.0
 
 CAMERA_TOPICS = [
-    '/front_camera/image_raw',
-    '/wrist_camera/image_raw',
+    'None',
+    '/camera/color/image_raw/compressed',
+    '/wrist_camera/image_raw/compressed',
 ]
 
 robot_pose_topic = '/amcl_pose'
@@ -58,7 +59,7 @@ ros2_interface = None
 
 # Camera image obtained from hardware
 camera = {
-    'topic':   '/front_camera/image_raw',
+    'topic':   'None', # currently selected camera topic
     'frame':   None,   # latest JPEG bytes
 }
 
@@ -190,7 +191,7 @@ class ROS2Interface(Node):
         if self.camera_sub is not None:
             self.destroy_subscription(self.camera_sub)
         self.camera_sub = self.create_subscription(
-            Image,
+            CompressedImage,
             topic,
             self.image_callback,
             1,          # queue depth 1 — always use latest frame
@@ -202,8 +203,8 @@ class ROS2Interface(Node):
         battery_level = msg.data
         
     def image_callback(self, msg):
-        # Convert ROS Image → OpenCV BGR → JPEG bytes → base64
-        cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
+        cv_img = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
         _, buf  = cv2.imencode('.jpg', cv_img, [cv2.IMWRITE_JPEG_QUALITY, 80])
         camera['frame'] = base64.b64encode(buf).decode('utf-8')
 
@@ -339,22 +340,29 @@ def main_page():
                     )
 
             # ── Camera image display ─────────────────────────────────────
-            camera_img = ui.html('').style('width:100%; margin-top:8px;')
+            camera_img = ui.html('''
+            <img
+                id="camera-feed"
+                style="
+                width:100%;
+                border-radius:8px;
+                object-fit:cover;
+                "
+            />
+            ''')
 
             def update_camera():
+
                 if camera['frame'] is None:
-                    camera_img.set_content(
-                        '<div style="width:100%;height:160px;background:#1a1a1a;'
-                        'border-radius:8px;display:flex;align-items:center;'
-                        'justify-content:center;color:#555;font-size:12px;">'
-                        'No signal</div>'
-                    )
-                else:
-                    camera_img.set_content(
-                        f'<img src="data:image/jpeg;base64,{camera["frame"]}"'
-                        f'style="width:100%;border-radius:8px;'
-                        f'object-fit:cover;" />'
-                    )
+                    return
+
+                ui.run_javascript(f'''
+                    const img = document.getElementById("camera-feed");
+
+                    if (img) {{
+                        img.src = "data:image/jpeg;base64,{camera['frame']}";
+                    }}
+                ''')
             
             ui.separator()
             ui.button('SAVE DATA', on_click=lambda: ui.notify("Data saved successfully!")).classes('w-full')
@@ -537,7 +545,6 @@ def main_page():
         """)
 
     # Update sensor charts with new random data for demonstration
-
     def update_chart():
 
         for item in sensor_charts:
