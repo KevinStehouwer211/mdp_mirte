@@ -87,6 +87,7 @@ ros-humble-image-transport = "*"
 ros-humble-slam-toolbox = "*"
 ros-humble-navigation2 = "*"
 ros-humble-nav2-bringup = "*"
+ros-humble-laser-filters = "*"
 
 [activation]
 #scripts = ["install/setup.bash"]
