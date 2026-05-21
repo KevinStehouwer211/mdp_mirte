@@ -82,6 +82,8 @@ battery_level = 100
 
 current_operating_mode = "No Mode Selected"
 
+heartbeat = None
+
 # ============================================================
 # STATIC DATA
 # ============================================================
@@ -122,6 +124,10 @@ sensors = [
 ]
 
 bridge = CvBridge()
+
+# Whether robot is connected or not
+robot_status = 0
+
 #########################################################################################
 
 # ROS2 INTERFACE NODE
@@ -129,8 +135,11 @@ bridge = CvBridge()
 class ROS2Interface(Node):
 
     def __init__(self):
+        global heartbeat
 
         super().__init__('ros2_interface')
+        
+        heartbeat = self.get_time_now()
         
         # Subscriber for robot pose 
         self.robot_pose_sub = self.create_subscription(
@@ -173,6 +182,8 @@ class ROS2Interface(Node):
 
     # Function to convert ROS2 pose to normalized % coordinates and store in shared dict
     def pose_callback(self, msg):
+        
+        global robot_pos, robot_status, heartbeat
 
         ros_x = msg.pose.pose.position.x
         ros_y = msg.pose.pose.position.y
@@ -190,6 +201,9 @@ class ROS2Interface(Node):
         robot_pos['x'] = normalized_x * 100
         robot_pos['y'] = (1 - normalized_y) * 100
         robot_pos['theta'] = math.atan2(ros_rot.z, ros_rot.w) * 2 * (180 / math.pi)  # Convert to degrees
+        heartbeat = self.get_time_now() # Update heartbeat to indicate activity
+        
+        robot_status = 1
         
     def switch_topic(self, topic: str):
         if self.camera_sub is not None:
@@ -222,6 +236,7 @@ class ROS2Interface(Node):
         self.goal_pos_pub.publish(goal_pose)
         ui.notify(f'Navigating to position at ({ros_x:.1f}, {ros_y:.1f})')
         
+        
     def set_operating_mode(self, mode: int):
         global current_operating_mode
         current_operating_mode = OPERATING_MODE.get(mode, "Unknown")
@@ -238,6 +253,9 @@ class ROS2Interface(Node):
         elif command == 'l':
             cmd.angular.z = 0.5
         self.teleop_pub.publish(cmd)
+        
+    def get_time_now(self):
+        return self.get_clock().now()
 
 
 # ============================================================
@@ -290,12 +308,12 @@ def main_page():
         
         with ui.card().classes('side-card light-card items-stretch'):
             ui.label('Robot Status').classes('title text-left')
+            robot_status_display = ui.label('Status: Offline').style('font-size:12px; color:grey;')
             ui.separator()
             ui.label('Operating Mode').classes('text-lg')
             mode_display = ui.label('No Mode Selected').style('font-size:12px; color:grey;')
             teleop_display = ui.label('').classes('whitespace-pre-line').style('font-size:15px')
-            
-            
+  
             def set_mode(label, message):
                 mode_display.set_text(label)
                 ros2_interface.set_operating_mode(list(OPERATING_MODE.keys())[list(OPERATING_MODE.values()).index(label)])
@@ -562,6 +580,24 @@ def main_page():
 
 
     def update_robot():
+        global heartbeat, robot_status
+        if ros2_interface.get_time_now() - heartbeat > rclpy.duration.Duration(seconds=5):
+            robot_status_display.set_text('Status: Offline')
+            robot_status = 0
+            # If no heartbeat for 5 seconds, consider robot disconnected
+            ui.run_javascript("""
+                var el = document.getElementById('robot-marker');
+                if (el) {
+                    el.style.background = '#888888';
+                    el.style.boxShadow = '0 0 20px rgba(136,136,136,0.45)';
+                }
+            """)
+            return
+        if robot_status == 1:
+            robot_status_display.set_text('Status: Online')
+        else:
+            robot_status_display.set_text('Status: Offline')
+            
         x = robot_pos['x']
         y = robot_pos['y']
         theta = robot_pos['theta'] + 90
@@ -570,6 +606,7 @@ def main_page():
             if (el) {{
                 el.style.left = '{x:.2f}%';
                 el.style.top  = '{y:.2f}%';
+                el.style.background = '#2563eb';
                 el.style.transform = 'translate(-50%, -50%) rotate({theta:.1f}deg)';
             }}
             var pos = document.getElementById('robot-pos');
