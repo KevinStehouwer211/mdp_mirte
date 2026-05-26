@@ -78,7 +78,7 @@ goal_pos = {
 }
 
 # Battery percentage
-battery_level = 100
+battery_level = 0.5
 
 current_operating_mode = "No Mode Selected"
 
@@ -308,10 +308,10 @@ def main_page():
         
         with ui.card().classes('side-card light-card items-stretch'):
             ui.label('Robot Status').classes('title text-left')
-            robot_status_display = ui.label('Status: Offline').style('font-size:12px; color:grey;')
+            robot_status_display = ui.label('Status: Offline').style('font-size:15px; color:grey;')
             ui.separator()
             ui.label('Operating Mode').classes('text-lg')
-            mode_display = ui.label('No Mode Selected').style('font-size:12px; color:grey;')
+            mode_display = ui.label('No Mode Selected').style('font-size:15px; color:grey;')
             teleop_display = ui.label('').classes('whitespace-pre-line').style('font-size:15px')
   
             def set_mode(label, message):
@@ -357,7 +357,8 @@ def main_page():
             ui.separator()
 
             ui.label('Battery Level').classes('text-lg')
-            ui.label(f'{battery_level}%').style('font-size:12px; color:grey;')
+            progress_bar = ui.linear_progress(value=0.0, show_value=False).props('size=12px rounded instant-feedback')
+            ui.label(f'{battery_level*100}%').style('font-size:12px; color:grey;')
 
             ui.separator()
 
@@ -578,6 +579,8 @@ def main_page():
             </div>
             ''')
 
+        #with ui.card().classes('alert-card').style('bottom' 'margin:12px;'):
+            #ui.label('This dashboard is a digital twin of the greenhouse. Click anywhere on the map to send the robot there!').classes('text-center')
 
     def update_robot():
         global heartbeat, robot_status
@@ -631,6 +634,13 @@ def main_page():
             chart.options['series'][0]['data'] = data
 
             chart.update()
+            
+        if battery_level < 0.2:
+            progress_bar.props('color=red')
+        else:
+            progress_bar.props('color=green')
+            
+        progress_bar.set_value(battery_level)
             
 
     ui.timer(0.1, update_robot)
