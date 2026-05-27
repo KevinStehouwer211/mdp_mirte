@@ -25,6 +25,7 @@ import math
 # Constants
 MAP_WIDTH_METERS  = 10.0
 MAP_HEIGHT_METERS = 5.0
+TIMEOUT_STATUS_OFFLINE = 15
 
 CAMERA_TOPICS = [
     'None',
@@ -78,7 +79,7 @@ goal_pos = {
 }
 
 # Battery percentage
-battery_level = 0.5
+battery_level = 0.0
 
 current_operating_mode = "No Mode Selected"
 
@@ -233,8 +234,9 @@ class ROS2Interface(Node):
         goal_pose = Pose()
         goal_pose.position.x = ros_x
         goal_pose.position.y = ros_y
-        self.goal_pos_pub.publish(goal_pose)
-        ui.notify(f'Navigating to position at ({ros_x:.1f}, {ros_y:.1f})')
+        if current_operating_mode == "Manual Mode":
+            self.goal_pos_pub.publish(goal_pose)
+            ui.notify(f'Navigating to position at ({ros_x:.1f}, {ros_y:.1f})')
         
         
     def set_operating_mode(self, mode: int):
@@ -345,8 +347,10 @@ def main_page():
 
                     
             keyboard = ui.keyboard(on_key=handle_key)
+            
+            operating_mode_dropdown = ui.dropdown_button('Select Operating Mode', auto_close=True)
                 
-            with ui.dropdown_button('Select Operating Mode', auto_close=True):
+            with operating_mode_dropdown:
                 ui.item('Measurement Mode', on_click=lambda: set_mode('Measurement Mode', "Starting measurement mode..."))
                 ui.item('Manual Mode', on_click=lambda: set_mode('Manual Mode', "Starting manual mode..."))
                 ui.item('Pause Mission', on_click=lambda: set_mode('Pause Mission', "Pausing mission..."))
@@ -357,8 +361,8 @@ def main_page():
             ui.separator()
 
             ui.label('Battery Level').classes('text-lg')
-            progress_bar = ui.linear_progress(value=0.0, show_value=False).props('size=12px rounded instant-feedback')
-            ui.label(f'{battery_level*100}%').style('font-size:12px; color:grey;')
+            battery_progress_bar = ui.linear_progress(value=0.0, show_value=False).props('size=12px rounded instant-feedback')
+            battery_label = ui.label('N/A').style('font-size:12px; color:grey;')
 
             ui.separator()
 
@@ -374,8 +378,10 @@ def main_page():
                 ros2_interface.switch_topic(topic)
                 current_topic.set_text(topic)
                 ui.notify(f'Switched to {topic}')
+                
+            camera_dropdown = ui.dropdown_button('Select Camera', auto_close=True).props('no-caps')
 
-            with ui.dropdown_button('Select Camera', auto_close=True).props('no-caps'):
+            with camera_dropdown:
                 for topic in CAMERA_TOPICS:
                     ui.item(
                         topic,
@@ -408,7 +414,7 @@ def main_page():
                 ''')
             
             ui.separator()
-            ui.button('SAVE DATA', on_click=lambda: ui.notify("Data saved successfully!")).classes('w-full')
+            save_button = ui.button('SAVE DATA', on_click=lambda: ui.notify("Data saved successfully!")).classes('w-full')
             
             ui.separator()
             
@@ -584,11 +590,48 @@ def main_page():
 
     def update_robot():
         global heartbeat, robot_status
-        if ros2_interface.get_time_now() - heartbeat > rclpy.duration.Duration(seconds=5):
+        if ros2_interface.get_time_now() - heartbeat > rclpy.duration.Duration(seconds=TIMEOUT_STATUS_OFFLINE):
+            robot_status = 0
+            # If no heartbeat for TIMEOUT_STATUS_OFFLINE seconds, consider robot disconnected
+    
+        if robot_status == 1:
+            robot_status_display.set_text('Status: Online')
+            robot_status_display.classes(replace='text-green font-bold')
+            operating_mode_dropdown.enable()
+            x = robot_pos['x']
+            y = robot_pos['y']
+            theta = robot_pos['theta'] + 90
+            ui.run_javascript(f"""
+                var el = document.getElementById('robot-marker');
+                if (el) {{
+                    el.style.left = '{x:.2f}%';
+                    el.style.top  = '{y:.2f}%';
+                    el.style.background = '#2563eb';
+                    el.style.transform = 'translate(-50%, -50%) rotate({theta:.1f}deg)';
+                }}
+                var pos = document.getElementById('robot-pos');
+                if (pos) {{
+                    pos.textContent =
+                        'Position: ({x:.1f}%, {y:.1f}%)';
+                }}
+            """)
+            camera_dropdown.enable()
+            save_button.enable()
+            
+            battery_level = 0.5  # Placeholder until we get real data from ROS2
+            
+            if battery_level < 0.2:
+                battery_progress_bar.props('color=red')
+            else:
+                battery_progress_bar.props('color=green')
+            
+            battery_progress_bar.set_value(battery_level)
+            battery_label.set_text(f'{battery_level*100:.0f}%')
+            
+        else:
             robot_status_display.set_text('Status: Offline')
             robot_status_display.classes(replace='text-red font-bold')
-            robot_status = 0
-            # If no heartbeat for 5 seconds, consider robot disconnected
+            operating_mode_dropdown.disable()
             ui.run_javascript("""
                 var el = document.getElementById('robot-marker');
                 if (el) {
@@ -596,32 +639,14 @@ def main_page():
                     el.style.boxShadow = '0 0 20px rgba(136,136,136,0.45)';
                 }
             """)
-            return
-        if robot_status == 1:
-            robot_status_display.set_text('Status: Online')
-            robot_status_display.classes(replace='text-green font-bold')
-        else:
-            robot_status_display.set_text('Status: Offline')
-            robot_status_display.classes(replace='text-red font-bold')
+            camera_dropdown.disable()
+            save_button.disable()
+            battery_level = 0.0
+            battery_progress_bar.props('color=grey')
+            battery_progress_bar.set_value(0.0)
+            battery_label.set_text('N/A')
             
-        x = robot_pos['x']
-        y = robot_pos['y']
-        theta = robot_pos['theta'] + 90
-        ui.run_javascript(f"""
-            var el = document.getElementById('robot-marker');
-            if (el) {{
-                el.style.left = '{x:.2f}%';
-                el.style.top  = '{y:.2f}%';
-                el.style.background = '#2563eb';
-                el.style.transform = 'translate(-50%, -50%) rotate({theta:.1f}deg)';
-            }}
-            var pos = document.getElementById('robot-pos');
-            if (pos) {{
-                pos.textContent =
-                    'Position: ({x:.1f}%, {y:.1f}%)';
-            }}
-        """)
-
+            
     # Update sensor charts with new random data for demonstration
     def update_chart():
 
@@ -638,12 +663,7 @@ def main_page():
 
             chart.update()
             
-        if battery_level < 0.2:
-            progress_bar.props('color=red')
-        else:
-            progress_bar.props('color=green')
-            
-        progress_bar.set_value(battery_level)
+
             
 
     ui.timer(0.1, update_robot)
