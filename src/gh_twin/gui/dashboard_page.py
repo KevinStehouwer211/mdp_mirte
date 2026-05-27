@@ -308,7 +308,7 @@ def main_page():
         
         with ui.card().classes('side-card light-card items-stretch'):
             ui.label('Robot Status').classes('title text-left')
-            robot_status_display = ui.label('Status: Offline').style('font-size:15px; color:grey;')
+            robot_status_display = ui.label('Status: Offline').style('font-size:15px;')
             ui.separator()
             ui.label('Operating Mode').classes('text-lg')
             mode_display = ui.label('No Mode Selected').style('font-size:15px; color:grey;')
@@ -586,6 +586,7 @@ def main_page():
         global heartbeat, robot_status
         if ros2_interface.get_time_now() - heartbeat > rclpy.duration.Duration(seconds=5):
             robot_status_display.set_text('Status: Offline')
+            robot_status_display.classes(replace='text-red font-bold')
             robot_status = 0
             # If no heartbeat for 5 seconds, consider robot disconnected
             ui.run_javascript("""
@@ -598,8 +599,10 @@ def main_page():
             return
         if robot_status == 1:
             robot_status_display.set_text('Status: Online')
+            robot_status_display.classes(replace='text-green font-bold')
         else:
             robot_status_display.set_text('Status: Offline')
+            robot_status_display.classes(replace='text-red font-bold')
             
         x = robot_pos['x']
         y = robot_pos['y']
