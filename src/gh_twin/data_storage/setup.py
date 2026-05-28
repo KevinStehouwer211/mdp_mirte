@@ -1,14 +1,20 @@
 from setuptools import setup
 
-package_name = 'gh_twin_data_storage'
+ros_package_name = 'gh_twin_data_storage'
+python_package_name = 'gh_twin_data_storage_nodes'
 
 setup(
-    name=package_name,
+    name=python_package_name,
     version='0.1.0',
-    packages=[package_name],
+    packages=[python_package_name],
     data_files=[
-        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml']),
+        ('share/ament_index/resource_index/packages', ['resource/' + ros_package_name]),
+        ('share/' + ros_package_name, ['package.xml']),
+        ('share/' + ros_package_name + '/launch', [
+            'launch/pddl_planner.launch.py',
+            'launch/task_scheduler.launch.py',
+            'launch/typedb.launch.py',
+        ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -20,10 +26,11 @@ setup(
     license='BSD-3-Clause',
     entry_points={
         'console_scripts': [
-            'typedb_node = gh_twin_data_storage.typedb_node:main',
-            'sql_db_node = gh_twin_data_storage.sql_db_node:main',
-            'nosql_db_node = gh_twin_data_storage.nosql_db_node:main',
-            'pddl_manager_node = gh_twin_data_storage.pddl_manager_node:main',
+            'typedb_node = gh_twin_data_storage_nodes.typedb_node:main',
+            'sql_db_node = gh_twin_data_storage_nodes.sql_db_node:main',
+            'nosql_db_node = gh_twin_data_storage_nodes.nosql_db_node:main',
+            'pddl_planner_node = gh_twin_data_storage_nodes.pddl_planner_node:main',
+            'plan_executor_node = gh_twin_data_storage_nodes.plan_executor_node:main',
         ],
     },
 )
