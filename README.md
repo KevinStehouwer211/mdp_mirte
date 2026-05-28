@@ -105,3 +105,111 @@ note: every new pixi session requires you to set the domain id.
 
 * **Inconsistent results across your group?** Make sure to use the same configuration of your workspace. Look at `git diff` to see changes. Moreover, we recommend using Pixi's lock file `pixi.lock`. This file pins the exact versions of dependencies installed in your Pixi environment. You can share this lock file within your group to detect inconsistencies and install the same dependency versions across your group.
 
+
+## TypeDB setup
+
+For the autonomous planning and executing of actions, the TypeDB knowledge base must be set up to store environment data, which PDDL can use for planning.
+
+In a new terminal: 
+
+```shell
+typedb server
+```
+
+Then again in a new terminal:
+
+```shell
+typedb console --core=localhost:1729
+```
+
+```shell
+database create greenhouse
+```
+
+Load the schema into the database:
+
+```shell
+transaction greenhouse schema write
+source typedb_files/greenhouse-schema.tql
+commit
+```
+
+Load the data into the database:
+
+```shell
+transaction greenhouse data write
+source typedb_files/greenhouse-data.tql
+commit
+```
+
+To check if this went ok you can use the following commands in the same console:
+
+```shell
+database schema greenhouse
+```
+
+The database should now be set up correctly. You only need to go back into the TypeDB console in the future if you want to write or read from the database manually.
+
+NOTE: Everytime you make use of a function that uses TypeDB, you must be connected to the TypeDB server through the "typedb server" terminal.
+
+## Running the planner
+
+With the "typedb server" open in one terminal, open a terminal to run the greenhouse simulation:
+
+```shell
+source install/setup.bash
+ros2 launch gh_twin greenhouse_launch.xml
+```
+
+And a terminal to run the planner. This can be done in two modes - 1. :=manual_slam 2. :=autonomous
+
+```shell
+source install/setup.bash
+ros2 launch gh_twin_data_storage task_scheduler.launch.py mode:=autonomous
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
