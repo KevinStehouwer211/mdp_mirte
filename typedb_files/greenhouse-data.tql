@@ -1,0 +1,20 @@
+insert
+
+# Starting data only. Runtime code adds waypoints, plants, scans, and pests.
+
+$map isa slam-map,
+  has id "greenhouse-map-001",
+  has name "greenhouse-map",
+  has world-frame "map",
+  has timestamp 2026-05-20T12:00:00;
+
+$robot isa robot,
+  has id "robot1",
+  has name "greenhouse-robot";
+
+$arm isa arm,
+  has id "arm1",
+  has name "wrist-camera-arm",
+  has arm-state "base";
+
+$mount (robot-body: $robot, arm-part: $arm) isa mounted-arm;

@@ -1,0 +1,4 @@
+match
+  $plant isa plant, has id $id, has scan-status $status;
+get $id, $status;
+
