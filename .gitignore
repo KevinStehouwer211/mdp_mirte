@@ -10,3 +10,4 @@ install
 log
 .DS_Store
 pixi.lock
+**/__pycache__/
