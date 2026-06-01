@@ -258,12 +258,13 @@ class TypeDBStorageNode(Node):
         record = {
             'id': msg.id,
             'location': {'x': msg.location.x, 'y': msg.location.y},
+            'sensor_type': msg.sensor_type,
             'readings': readings,
         }
         self.sensors.append(record)
         self.get_logger().info(
             f'Received sensor id={msg.id}, loc=({msg.location.x:.2f},{msg.location.y:.2f}), '
-            f'{len(readings)} readings'
+            f'type={msg.sensor_type}, {len(readings)} readings'
         )
 
         try:

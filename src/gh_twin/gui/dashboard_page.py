@@ -17,6 +17,8 @@ from cv_bridge import CvBridge
 import cv2
 import base64
 
+from gh_twin_data_storage.msg import Flower, Pest, Sensor
+
 import random
 import math
 
@@ -159,6 +161,28 @@ class ROS2Interface(Node):
         self.camera_sub = None
         self.switch_topic(camera['topic'])
         
+        # Subscribers for entity data
+        self.flower_sub = self.create_subscription(
+            Flower,
+            'flower_data',
+            self.flower_callback_gui,
+            10
+        )
+        
+        self.pest_sub = self.create_subscription(
+            Pest,
+            'pest_data',
+            self.pest_callback_gui,
+            10
+        )
+        
+        self.sensor_sub = self.create_subscription(
+            Sensor,
+            'sensor_data',
+            self.sensor_callback_gui,
+            10
+        )
+        
         # Publisher for robot goal position
         self.goal_pos_pub = self.create_publisher(
             Pose,
@@ -220,6 +244,74 @@ class ROS2Interface(Node):
         global battery_level
         battery_level = msg.data
         
+    def flower_callback_gui(self, msg: Flower):
+        """Update GUI plants list from flower messages."""
+        global plants
+        
+        # Convert color to the format used in the GUI (lowercase for image lookup)
+        color = msg.color if msg.color else 'white'
+        
+        # Create or update plant entry
+        plant_entry = {
+            'id': f'P{msg.id}',
+            'x': msg.robot_pose.position.x if msg.robot_pose else 0,
+            'y': msg.robot_pose.position.y if msg.robot_pose else 0,
+            'bloomed': msg.bloomed,
+            'color': color,
+        }
+        
+        # Update or add to plants list (check if id already exists)
+        existing = next((p for p in plants if p['id'] == plant_entry['id']), None)
+        if existing:
+            existing.update(plant_entry)
+        else:
+            plants.append(plant_entry)
+    
+    def pest_callback_gui(self, msg: Pest):
+        """Update GUI bugs list from pest messages."""
+        global bugs
+        
+        # Create or update bug entry
+        bug_entry = {
+            'id': f'B{msg.id}',
+            'x': msg.location.x,
+            'y': msg.location.y,
+        }
+        
+        # Update or add to bugs list
+        existing = next((b for b in bugs if b['id'] == bug_entry['id']), None)
+        if existing:
+            existing.update(bug_entry)
+        else:
+            bugs.append(bug_entry)
+    
+    def sensor_callback_gui(self, msg: Sensor):
+        """Update GUI sensors list from sensor messages."""
+        global sensors
+        
+        # Extract numerical values from readings for chart data
+        values = [float(r.value) for r in msg.readings if hasattr(r, 'value')]
+        
+        # Keep only the most recent readings for the chart (e.g., last 10)
+        values = values[-10:] if len(values) > 10 else values
+        
+        # Create or update sensor entry
+        sensor_entry = {
+            'id': f'S{msg.id}',
+            'x': msg.location.x,
+            'y': msg.location.y,
+            'type': msg.sensor_type if msg.sensor_type else 'Unknown',
+            'data': values if values else [0],
+        }
+        
+        # Update or add to sensors list
+        existing = next((s for s in sensors if s['id'] == sensor_entry['id']), None)
+        if existing:
+            existing.update(sensor_entry)
+        else:
+            sensors.append(sensor_entry)
+        
+
     def image_callback(self, msg):
         # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
         cv_img = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
