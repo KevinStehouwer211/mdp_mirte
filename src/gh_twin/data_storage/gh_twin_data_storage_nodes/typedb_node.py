@@ -112,6 +112,16 @@ class TypeDBStorageNode(Node):
         self._write_query(delete_query)
         self.get_logger().info(f"Removed waypoint '{waypoint_id}' from TypeDB")
 
+    def remove_all_waypoints(self):
+        """Remove all waypoints and their associated relations from TypeDB."""
+        delete_query = '''
+        match
+          $wp isa waypoint;
+        delete $wp;
+        '''
+        self._write_query(delete_query)
+        self.get_logger().info("Removed all waypoints from TypeDB")
+
     def _find_nearest_waypoint(self, location):
         waypoints = self._query_waypoints()
         if not waypoints:
