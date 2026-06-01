@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from gh_twin_data_storage.msg import Pest, Plant, Sensor
+from gh_twin_data_storage.msg import Pest, Flower, Sensor
 from typedb.driver import TypeDB, SessionType, TransactionType
 
 
@@ -28,11 +28,11 @@ class TypeDBStorageNode(Node):
         self.sensors = []
         self.scan_counter = 0
 
-        self.create_subscription(Plant, 'plant_data', self.plant_callback, 10)
+        self.create_subscription(Flower, 'flower_data', self.flower_callback, 10)
         self.create_subscription(Pest, 'pest_data', self.pest_callback, 10)
         self.create_subscription(Sensor, 'sensor_data', self.sensor_callback, 10)
 
-        self.get_logger().info('Typedb storage node is ready to receive plant, pest, and sensor messages.')
+        self.get_logger().info('Typedb storage node is ready to receive flower, pest, and sensor messages.')
 
     def connect_to_typedb(self):
         self.get_logger().info(f"Connecting to TypeDB at {self.typedb_address}")
@@ -74,6 +74,76 @@ class TypeDBStorageNode(Node):
     def _typeql_string(self, value):
         return str(value).replace("\\", "\\\\").replace('"', '\\"')
 
+    def _query_waypoints(self):
+        query = '''
+        match
+          $wp isa waypoint, has id $wp_id, has x $x, has y $y;
+        get $wp_id, $x, $y;
+        '''
+        results = self._read_query(query)
+        waypoints = []
+        for row in results:
+            waypoints.append({
+                'id': self._read_attr(row, 'wp_id'),
+                'x': float(self._read_attr(row, 'x')),
+                'y': float(self._read_attr(row, 'y')),
+            })
+        return waypoints
+
+    def remove_waypoint(self, waypoint_id: str):
+        """Remove a waypoint and all its associated TypeDB relations."""
+        if not waypoint_id:
+            raise ValueError('Waypoint id must be provided.')
+
+        check_query = f'''
+        match
+          $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
+        get $wp;
+        '''
+        results = self._read_query(check_query)
+        if not results:
+            raise RuntimeError(f"Waypoint '{waypoint_id}' not found in TypeDB.")
+
+        delete_query = f'''
+        match
+          $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
+        delete $wp;
+        '''
+        self._write_query(delete_query)
+        self.get_logger().info(f"Removed waypoint '{waypoint_id}' from TypeDB")
+
+    def _find_nearest_waypoint(self, location):
+        waypoints = self._query_waypoints()
+        if not waypoints:
+            raise RuntimeError('No waypoints found in TypeDB.')
+
+        best = min(
+            waypoints,
+            key=lambda wp: (wp['x'] - location['x']) ** 2 + (wp['y'] - location['y']) ** 2,
+        )
+        return best
+
+    def _get_waypoint_for_location(self, location):
+        if location is None or 'x' not in location or 'y' not in location:
+            raise RuntimeError('Location must include x and y values.')
+
+        try:
+            nearest = self._find_nearest_waypoint(location)
+            dx = location['x'] - nearest['x']
+            dy = location['y'] - nearest['y']
+            distance = (dx * dx + dy * dy) ** 0.5
+            self.get_logger().info(
+                f"Mapped location ({location['x']:.2f},{location['y']:.2f}) "
+                f"to waypoint {nearest['id']} (distance={distance:.3f})"
+            )
+            return nearest['id']
+        except Exception as exception:
+            self.get_logger().warning(
+                f"Unable to map location ({location.get('x')},{location.get('y')}) to a waypoint: {exception}. "
+                f"Falling back to current robot waypoint."
+            )
+            return self._get_current_wp_id()
+
     def _get_current_wp_id(self):
         query = f'''
         match
@@ -88,37 +158,37 @@ class TypeDBStorageNode(Node):
 
         raise RuntimeError(f"No current-location found for robot '{self.robot_id}'.")
 
-    def plant_callback(self, msg: Plant):
+    def flower_callback(self, msg: Flower):
         record = {
             'id': msg.id,
             'location': {'x': msg.location.x, 'y': msg.location.y},
             'color': msg.color,
-            'height': msg.height,
-            'is_flower': msg.is_flower,
+            'bloomed': msg.bloomed,
+            'robot_pose': msg.robot_pose,
         }
         self.plants.append(record)
         self.get_logger().info(
-            f'Received plant id={msg.id}, loc=({msg.location.x:.2f},{msg.location.y:.2f}), '
-            f'color={msg.color}, height={msg.height:.2f}, flower={msg.is_flower}'
+            f'Received flower id={msg.id}, loc=({msg.location.x:.2f},{msg.location.y:.2f}), '
+            f'color={msg.color}, bloomed={msg.bloomed}, pose=({msg.robot_pose.position.x:.2f},{msg.robot_pose.position.y:.2f})'
         )
 
-        plant_id = f"plant{msg.id}"
-        try: 
-            waypoint_id = self._get_current_wp_id()
+        flower_id = f"flower{msg.id}"
+        try:
+            waypoint_id = self._get_waypoint_for_location(record['location'])
             query = f'''
             match
               $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
             insert
-              $plant isa plant,
-                has id "{self._typeql_string(plant_id)}",
+              $flower isa plant,
+                has id "{self._typeql_string(flower_id)}",
                 has scan-status "not-scanned";
-              $obs (observer: $wp, observed-plant: $plant) isa observation-location;
-              $loc (located: $plant, at-waypoint: $wp) isa object-location;
+              $obs (observer: $wp, observed-plant: $flower) isa observation-location;
+              $loc (located: $flower, at-waypoint: $wp) isa object-location;
             '''
             self._write_query(query)
-            self.get_logger().info(f"Inserted plant {plant_id} at waypoint {waypoint_id} in TypeDB")
+            self.get_logger().info(f"Inserted flower {flower_id} at waypoint {waypoint_id} in TypeDB")
         except Exception as exception:
-            self.get_logger().error(f"Failed to insert plant {plant_id} into TypeDB: {exception}")
+            self.get_logger().error(f"Failed to insert flower {flower_id} into TypeDB: {exception}")
 
     def pest_callback(self, msg: Pest):
         record = {
@@ -130,8 +200,8 @@ class TypeDBStorageNode(Node):
         self.get_logger().info(f'Received pest id={msg.id}, loc=({msg.location.x:.2f},{msg.location.y:.2f}), sprayed={msg.sprayed}')
 
         pest_id = f"pest{msg.id}"
-        try: 
-            waypoint_id = self._get_current_wp_id()
+        try:
+            waypoint_id = self._get_waypoint_for_location(record['location'])
             spray_status = "sprayed" if msg.sprayed else "not-sprayed"
             query = f'''
             match
@@ -165,7 +235,7 @@ class TypeDBStorageNode(Node):
         )
 
         try:
-            waypoint_id = self._get_current_wp_id()
+            waypoint_id = self._get_waypoint_for_location(record['location'])
         except Exception as exception:
             self.get_logger().error(f"Failed to determine waypoint for sensor {msg.id}: {exception}")
             return

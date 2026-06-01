@@ -14,7 +14,7 @@ This package provides typed storage nodes for greenhouse digital twin data. It c
 
 ## Messages
 
-- `Plant` - plant or flower instance with `id`, `location`, `color`, `height`, `is_flower`
+- `Flower` - flower instance with `id`, `location`, `color`, `bloomed`, and `robot_pose`
 - `Pest` - pest instance with `id`, `location`, and `sprayed`
 - `Sensor` - sensor instance with `id`, `location`, and repeated `SensorData`
 - `SensorData` - single sensor reading with `type`, `value`, and `unit`

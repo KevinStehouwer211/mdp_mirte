@@ -37,7 +37,7 @@ install(PROGRAMS gh_twin_data_storage_nodes/plan_executor_node.py
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/Plant.msg"
+  "msg/Flower.msg"
   "msg/Pest.msg"
   "msg/Sensor.msg"
   "msg/SensorData.msg"

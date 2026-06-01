@@ -8,7 +8,7 @@ from pathlib import Path
 import rclpy
 from rclpy.node import Node
 
-from gh_twin_data_storage.msg import Pest, Plant, Sensor
+from gh_twin_data_storage.msg import Pest, Flower, Sensor
 from typedb.driver import TypeDB, SessionType, TransactionType
 import os
 
