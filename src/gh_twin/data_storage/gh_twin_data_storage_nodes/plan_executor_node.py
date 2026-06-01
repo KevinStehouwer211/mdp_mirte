@@ -11,6 +11,7 @@ import rclpy
 from geometry_msgs.msg import Pose
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState
+from std_msgs.msg import Int32
 from typedb.driver import SessionType, TransactionType
 
 from gh_twin.nav_to_pose import ExitCode, NavToPose
@@ -49,6 +50,7 @@ class PlanExecutorNode(Node):
         self.declare_parameter("recharge_waypoint", "wp0") #Placeholder waypoint for now
         self.declare_parameter("typedb_address", "localhost:1729")
         self.declare_parameter("database_name", "greenhouse")
+        self.declare_parameter("operating_mode_topic", "/operating_mode")
 
         self.domain_file = Path(self.get_parameter("domain_file").value)
         self.problem_file = Path(self.get_parameter("problem_file").value)
@@ -60,6 +62,8 @@ class PlanExecutorNode(Node):
         self.recharge_waypoint = self.get_parameter("recharge_waypoint").value
         self.typedb_address = self.get_parameter("typedb_address").value
         self.database_name = self.get_parameter("database_name").value
+        self.operating_mode_topic = self.get_parameter("operating_mode_topic").value
+        self.operating_mode = 1 #default to manual mode
 
         self.navigator = None
         self.pddl_manager = PddlPlannerNode(
@@ -79,16 +83,13 @@ class PlanExecutorNode(Node):
         self.latest_battery = None
 
         self.create_subscription(BatteryState, self.battery_topic, self.battery_callback, 10)
+        self.create_subscription(Int32, self.operating_mode_topic, self.operating_mode_callback, 1)
+
         self.create_timer(
             float(self.get_parameter("battery_check_period").value),
             self.check_battery_level,
         )
-
-        if self.execute_on_start:
-            self.create_timer(1.0, self._execute_plan_once)
-
-        self.get_logger().info("Plan executor node initialized")
-
+        
     def destroy_node(self):
         try:
             if self.navigator is not None:
@@ -98,9 +99,36 @@ class PlanExecutorNode(Node):
         finally:
             return super().destroy_node()
 
+    def operating_mode_callback(self, msg: Int32):
+        self.operating_mode = msg.data
+        self.set_operating_mode(self.operating_mode)
+        self.get_logger().info(f"Operating mode changed to: {self.operating_mode}")
+
+    def set_operating_mode(self, operating_mode):
+        # this function subscribes/reads the mode selection topic from the HMI (\operatingmode) and updates the mode parameter
+
+        if self.operating_mode == 0: #data collection
+            self.abort_requested = False
+            if not self.plan_active:
+                self._execute_plan_once()
+                self.get_logger().info("Data collection mode; executing current plan")
+            else:
+                return
+ 
+        elif self.operating_mode == 1: #manual
+            self.abort_requested = True
+            self.get_logger().info ("Manual mode; aborting current plan and task scheduler is on standby untill mode change")
+
+        elif self.operating_mode == 2  :  #rebase
+            self.abort_requested = False
+            self.return_to_recharge()
+            self.get_logger().info("Rebase mode; returning to recharge waypoint")
+
+        else:
+            self.get_logger().info("Mode not implemented/known")
+            
+        
     def _execute_plan_once(self):
-        if self._started:
-            return
         self._started = True
         try:
             self.execute_current_plan()
