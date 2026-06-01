@@ -12,7 +12,7 @@ world-frame sub attribute, value string;
 x sub attribute, value double;
 y sub attribute, value double;
 yaw sub attribute, value double;
-waypoint-index sub attribute, value long;
+bin-id sub attribute, value string;
 pose-source sub attribute, value string;
 
 scan-status sub attribute, value string;
@@ -59,7 +59,7 @@ arm sub entity,
 
 waypoint sub entity,
   owns id @key,
-  owns waypoint-index,
+  owns bin-id,
   owns x,
   owns y,
   owns yaw,

@@ -15,6 +15,9 @@ setup(
             'launch/task_scheduler.launch.py',
             'launch/typedb.launch.py',
         ]),
+        ('share/' + ros_package_name + '/config', [
+            'config/waypoints.yml',
+        ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

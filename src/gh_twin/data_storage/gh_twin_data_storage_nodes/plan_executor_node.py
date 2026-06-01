@@ -3,7 +3,6 @@
 import argparse
 import math
 import re
-import time
 from pathlib import Path
 from typing import Dict, List
 
@@ -11,7 +10,7 @@ import rclpy
 from geometry_msgs.msg import Pose
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32, Bool
 from typedb.driver import SessionType, TransactionType
 
 from gh_twin.nav_to_pose import ExitCode, NavToPose
@@ -51,6 +50,8 @@ class PlanExecutorNode(Node):
         self.declare_parameter("typedb_address", "localhost:1729")
         self.declare_parameter("database_name", "greenhouse")
         self.declare_parameter("operating_mode_topic", "/operating_mode")
+        self.declare_parameter("robot_heartbeat_topic", "/robot_heartbeat")
+        self.robot_heartbeat = True
 
         self.domain_file = Path(self.get_parameter("domain_file").value)
         self.problem_file = Path(self.get_parameter("problem_file").value)
@@ -64,6 +65,7 @@ class PlanExecutorNode(Node):
         self.database_name = self.get_parameter("database_name").value
         self.operating_mode_topic = self.get_parameter("operating_mode_topic").value
         self.operating_mode = 1 #default to manual mode
+        self.robot_heartbeat_topic = self.get_parameter("robot_heartbeat_topic").value
 
         self.navigator = None
         self.pddl_manager = PddlPlannerNode(
@@ -83,7 +85,12 @@ class PlanExecutorNode(Node):
         self.latest_battery = None
 
         self.create_subscription(BatteryState, self.battery_topic, self.battery_callback, 10)
-        self.create_subscription(Int32, self.operating_mode_topic, self.operating_mode_callback, 1)
+        self.create_subscription(Int32, self.operating_mode_topic, self.operating_mode_callback, 10)
+
+        self.robot_heartbeat_publisher = self.create_publisher(Bool, self.robot_heartbeat_topic, 10)
+        self.create_timer(1.0, self.publish_robot_heartbeat)
+
+        self.robot_heartbeat = True
 
         self.create_timer(
             float(self.get_parameter("battery_check_period").value),
@@ -91,6 +98,9 @@ class PlanExecutorNode(Node):
         )
         
     def destroy_node(self):
+        self.robot_heartbeat = False
+        self.publish_robot_heartbeat()
+
         try:
             if self.navigator is not None:
                 self.navigator.destroy_node()
@@ -101,10 +111,10 @@ class PlanExecutorNode(Node):
 
     def operating_mode_callback(self, msg: Int32):
         self.operating_mode = msg.data
-        self.set_operating_mode(self.operating_mode)
+        self.set_operating_mode()
         self.get_logger().info(f"Operating mode changed to: {self.operating_mode}")
 
-    def set_operating_mode(self, operating_mode):
+    def set_operating_mode(self):
         # this function subscribes/reads the mode selection topic from the HMI (\operatingmode) and updates the mode parameter
 
         if self.operating_mode == 0: #data collection
@@ -194,6 +204,11 @@ class PlanExecutorNode(Node):
 
         self.get_logger().warn(f"Battery below threshold ({percentage:.2f} < {self.battery_threshold:.2f})")
         self.abort_requested = True
+
+    def publish_robot_heartbeat(self):
+        msg = Bool()
+        msg.data = self.robot_heartbeat
+        self.robot_heartbeat_publisher.publish(msg)
 
     def parse_popf_plan(self, planner_output: str) -> List[Dict]:
         """Turn POPF text into simple action dictionaries."""

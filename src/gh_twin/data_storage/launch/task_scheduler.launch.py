@@ -91,6 +91,7 @@ def generate_launch_description():
                 "recharge_waypoint": recharge_waypoint,
                 "typedb_address": typedb_address,
                 "database_name": database_name,
+                "robot_heartbeat_topic": "/robot_heartbeat",
             }
         ],
     )
