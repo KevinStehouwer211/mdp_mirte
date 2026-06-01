@@ -45,7 +45,6 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([FindPackageShare("gh_twin"), "launch", "nav.launch.py"])
         ),
-        condition=mode_is("autonomous"),
         launch_arguments={
             "use_sim_time": use_sim_time,
         }.items(),
@@ -72,7 +71,6 @@ def generate_launch_description():
         executable="plan_executor_node",
         name="plan_executor",
         output="screen",
-        condition=mode_is("autonomous"),
         arguments=[
             "--domain-file",
             domain_file,
@@ -81,7 +79,7 @@ def generate_launch_description():
         ],
         parameters=[
             {
-                "mode": mode,
+                "operating_mode_topic": "/operating_mode",
                 "use_sim_time": use_sim_time,
                 "battery_topic": battery_topic,
                 "battery_threshold": battery_threshold,

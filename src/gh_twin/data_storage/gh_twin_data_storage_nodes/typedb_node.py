@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 from gh_twin_data_storage.msg import Pest, Flower, Sensor
 from typedb.driver import TypeDB, SessionType, TransactionType
+import yaml
 
 
 class TypeDBStorageNode(Node):
@@ -15,6 +16,7 @@ class TypeDBStorageNode(Node):
         self.declare_parameter('map_id', 'greenhouse-map-001')
         self.declare_parameter('robot_id', 'robot1')
         self.declare_parameter('current_wp_id', '')
+        self.declare_parameter('waypoints_file', '')
 
         self.typedb_address = self.get_parameter("typedb_address").value
         self.database_name = self.get_parameter("database_name").value
@@ -22,7 +24,7 @@ class TypeDBStorageNode(Node):
         
         self.map_id = self.get_parameter("map_id").value
         self.robot_id = self.get_parameter("robot_id").value
-
+        self.waypoints_file = self.get_parameter("waypoints_file").value
         self.plants = []
         self.pests = []
         self.sensors = []
@@ -121,6 +123,26 @@ class TypeDBStorageNode(Node):
         '''
         self._write_query(delete_query)
         self.get_logger().info("Removed all waypoints from TypeDB")
+
+    def load_waypoints_from_yml(self):
+        if not self.waypoints_file:
+            self.get_logger().error(f"No waypoints file available.")
+            return
+        
+        with open(self.waypoints_file, 'r') as file:
+            waypoints = yaml.safe_load(file)
+            for wp in waypoints:
+                query = f'''
+                insert
+                  $wp isa waypoint,
+                    has id "{self._typeql_string(wp['id'])}",
+                    has index {int(wp['index'])},
+                    has x {float(wp['x'])},
+                    has y {float(wp['y'])},
+                    has yaw {float(wp['yaw'])},
+                    has pose-source "{self._typeql_string(wp['pose_source'])}";
+                '''
+                self._write_query(query)
 
     def _find_nearest_waypoint(self, location):
         waypoints = self._query_waypoints()
@@ -292,6 +314,7 @@ def main(args=None):
     rclpy.init(args=args)
     node = TypeDBStorageNode()
     node.connect_to_typedb()
+    node.load_waypoints_from_yaml("waypoints.yaml")
 
     try:
         rclpy.spin(node)
