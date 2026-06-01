@@ -62,6 +62,11 @@ def generate_launch_description():
                 "map_id": "greenhouse-map-001",
                 "robot_id": "robot1",
                 "current_wp_id": "",
+                "waypoints_file": PathJoinSubstitution([
+                    FindPackageShare("gh_twin_data_storage"),
+                    "config",
+                    "waypoints.yml",
+                ]),
             }
         ],
     )

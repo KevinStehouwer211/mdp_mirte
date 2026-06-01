@@ -136,7 +136,7 @@ class TypeDBStorageNode(Node):
                 insert
                   $wp isa waypoint,
                     has id "{self._typeql_string(wp['id'])}",
-                    has index {int(wp['index'])},
+                    has waypoint-index {int(wp['index'])},
                     has x {float(wp['x'])},
                     has y {float(wp['y'])},
                     has yaw {float(wp['yaw'])},
@@ -314,7 +314,7 @@ def main(args=None):
     rclpy.init(args=args)
     node = TypeDBStorageNode()
     node.connect_to_typedb()
-    node.load_waypoints_from_yaml("waypoints.yaml")
+    node.load_waypoints_from_yml()
 
     try:
         rclpy.spin(node)

@@ -161,11 +161,11 @@ source install/setup.bash
 ros2 launch gh_twin greenhouse_launch.xml
 ```
 
-And a terminal to run the planner. This can be done in two modes - 1. :=manual_slam 2. :=autonomous
+And a terminal to run the planner.
 
 ```shell
 source install/setup.bash
-ros2 launch gh_twin_data_storage task_scheduler.launch.py mode:=autonomous
+ros2 launch gh_twin_data_storage task_scheduler.launch.py
 ```
 
 
