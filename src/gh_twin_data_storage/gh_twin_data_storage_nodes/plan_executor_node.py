@@ -5,6 +5,7 @@ import math
 import re
 from pathlib import Path
 from typing import Dict, List
+import time
 
 import rclpy
 from geometry_msgs.msg import Pose
@@ -15,7 +16,7 @@ from typedb.driver import SessionType, TransactionType
 
 from gh_twin.gh_twin.nav_to_pose import ExitCode, NavToPose
 from data_storage.gh_twin_data_storage_nodes.pddl_planner_node import PddlPlannerNode
-
+from gh_twin_data_storage.gh_twin_data_storage_nodes.arm_controller import ArmController
 
 class PlanAborted(Exception):
     pass
@@ -51,8 +52,7 @@ class PlanExecutorNode(Node):
         self.declare_parameter("database_name", "greenhouse")
         self.declare_parameter("operating_mode_topic", "/operating_mode")
         self.declare_parameter("robot_heartbeat_topic", "/robot_heartbeat")
-        self.robot_heartbeat = True
-
+        
         self.domain_file = Path(self.get_parameter("domain_file").value)
         self.problem_file = Path(self.get_parameter("problem_file").value)
         self.map_frame = self.get_parameter("map_frame").value
@@ -64,7 +64,6 @@ class PlanExecutorNode(Node):
         self.typedb_address = self.get_parameter("typedb_address").value
         self.database_name = self.get_parameter("database_name").value
         self.operating_mode_topic = self.get_parameter("operating_mode_topic").value
-        self.operating_mode = 1 #default to manual mode
         self.robot_heartbeat_topic = self.get_parameter("robot_heartbeat_topic").value
 
         self.navigator = None
@@ -83,6 +82,9 @@ class PlanExecutorNode(Node):
         self.returning_to_recharge = False
         self.current_goal_handle = None
         self.latest_battery = None
+        self.robot_heartbeat = True
+        self.operating_mode = 1 #default to manual mode
+        self.arm_controller = None
 
         self.create_subscription(BatteryState, self.battery_topic, self.battery_callback, 10)
         self.create_subscription(Int32, self.operating_mode_topic, self.operating_mode_callback, 10)
@@ -136,7 +138,6 @@ class PlanExecutorNode(Node):
 
         else:
             self.get_logger().info("Mode not implemented/known")
-            
         
     def _execute_plan_once(self):
         self._started = True
@@ -171,13 +172,11 @@ class PlanExecutorNode(Node):
                 if action["name"] == "move":
                     self.execute_move(action)
                 elif action["name"] in {"scan", "spray"}:
-                    self.execute_wait(action)
+                    self.execute_arm_action(action)
                 else:
                     self.get_logger().warn(f"Skipping unsupported PDDL action: {action['raw']}")
         except PlanAborted:
-            self.get_logger().warn(
-                f"Plan aborted by battery monitor. Returning to {self.recharge_waypoint}"
-            )
+            self.get_logger().warn(f"Plan aborted by battery monitor. Returning to {self.recharge_waypoint}")
             self.return_to_recharge()
             return
         finally:
@@ -398,6 +397,55 @@ class PlanExecutorNode(Node):
 
         self.pddl_manager._write_query(insert_query)
         self.get_logger().info(f"Updated TypeDB current-location to {waypoint_id}")
+
+    def execute_arm_action(self, action: Dict):
+        if action["name"] == "scan":
+            arm_pose = "scan"
+            self.get_logger().info(f"Moving arm to scan position.")
+        
+        elif action["name"] == "spray":
+            arm_pose = "spray"
+            self.get_logger().info(f"Moving arm to spray position.")
+        else:
+            self.get_logger().info(f"skipping arm action due to unknown action name.")
+        
+        arm_controller = self.get_arm_controller()
+        arm_controller.move_arm_to_pose(arm_pose)
+        self.replace_current_arm_pose(arm_pose)
+        self.execute_wait(action) #not sure if this is necessary in regard to collecting data
+        arm_controller.move_arm_to_pose("base")
+        self.replace_current_arm_pose("base")
+
+    def get_arm_controller(self) -> ArmController:
+        if self.arm_controller is None:
+            self.get_logger().info("Initializing arm controller")
+            self.arm_controller = ArmController()
+        return self.arm_controller
+
+    def replace_current_arm_pose(self, arm_pose):
+        arm_id = self.pddl_manager.arm_id
+        
+        delete_query = f'''
+        match
+          $arm isa arm, has id "{arm_id}", has arm-state $old-arm-state;
+        delete
+          $arm has $old-arm-state;
+        '''
+
+        insert_query = f'''
+        match
+          $arm isa arm, has id "{arm_id}", has arm-state "{arm_pose}";
+        insert
+          $arm has arm-state "{arm_pose}";
+        '''
+
+        with self.pddl_manager.driver.session(self.pddl_manager.database_name, SessionType.DATA) as session:
+            with session.transaction(TransactionType.WRITE) as transaction:
+                transaction.query.delete(delete_query)
+                transaction.commit()
+
+        self.pddl_manager._write_query(insert_query)
+        self.get_logger().info(f"Updated TypeDB arm-state to {arm_pose}")
 
 
 def main(args=None):
