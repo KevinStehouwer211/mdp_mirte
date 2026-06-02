@@ -19,7 +19,7 @@ import cv2
 import base64
 
 from gh_twin_interfaces.msg import Flower, Pest, Sensor
-from lupin_greenhouse_msgs.msg import TagReading
+#from lupin_greenhouse_msgs.msg import TagReading
 
 import random
 import math
@@ -154,7 +154,7 @@ sensors_new = [
 bridge = CvBridge()
 
 # Whether robot is connected or not
-robot_status = 1
+robot_status = 0
 
 #########################################################################################
 
@@ -348,7 +348,7 @@ class ROS2Interface(Node):
             existing.update(sensor_entry)
         else:
             sensors.append(sensor_entry)
-
+    '''
     def sensor_callback_gui_new(self, msg: TagReading):
         """Update GUI sensors list from sensor messages."""
         global sensors_new
@@ -395,7 +395,7 @@ class ROS2Interface(Node):
             if r.name in existing:
                 existing[r.name] = existing[r.name][-max_history:]
         
-
+    '''
     def image_callback(self, msg):
         # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
         cv_img = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
