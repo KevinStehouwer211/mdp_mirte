@@ -13,8 +13,8 @@ from sensor_msgs.msg import BatteryState
 from std_msgs.msg import Int32, Bool
 from typedb.driver import SessionType, TransactionType
 
-from gh_twin.nav_to_pose import ExitCode, NavToPose
-from gh_twin_data_storage_nodes.pddl_planner_node import PddlPlannerNode
+from gh_twin.gh_twin.nav_to_pose import ExitCode, NavToPose
+from data_storage.gh_twin_data_storage_nodes.pddl_planner_node import PddlPlannerNode
 
 
 class PlanAborted(Exception):
