@@ -18,6 +18,7 @@ import cv2
 import base64
 
 from gh_twin_interfaces.msg import Flower, Pest, Sensor
+from lupin_greenhouse_msgs.msg import TagReading
 
 import random
 import math
@@ -124,6 +125,27 @@ bugs = [
 sensors = [
     {'id': 'S1', 'x': 1070, 'y': 180, 'type': 'Humidity', 'data': [22,22.4,22.8] },
     {'id': 'S2', 'x': 770, 'y': 120, 'type': 'Temperature', 'data': [24,24.5,25]},
+]
+
+sensors_new = [
+    {
+        'id': 'S1',
+        'x': 1070, 'y': 180,
+        'humidity': [22,22.4,22.8],
+        'temperature': [24,24.5,25],
+        'co2': [400,410,420],
+        'light': [300,320,350],
+        'time': [0,1,2]
+    },
+    {
+        'id': 'S2',
+        'x': 770, 'y': 120,
+        'humidity': [22,22.4,22.8],
+        'temperature': [24,24.5,25],
+        'co2': [400,410,420],
+        'light': [300,320,350],
+        'time': [0,1,2]
+    }
 ]
 
 bridge = CvBridge()
@@ -311,6 +333,52 @@ class ROS2Interface(Node):
             existing.update(sensor_entry)
         else:
             sensors.append(sensor_entry)
+
+    def sensor_callback_gui_new(self, msg: TagReading):
+        """Update GUI sensors list from sensor messages."""
+        global sensors_new
+        
+        # Extract ID (handling both 'id' from your old msg and 'tag_id' from the new service structure)
+        raw_id = getattr(msg, 'id', getattr(msg, 'tag_id', 'Unknown'))
+        sensor_id = f'S{raw_id}'
+        
+        # Convert ROS time stamp to a single float (seconds) for easier plotting
+        timestamp = msg.stamp.sec + (msg.stamp.nanosec * 1e-9)
+        
+        # Find existing sensor entry
+        existing = next((s for s in sensors_new if s['id'] == sensor_id), None)
+        
+        if not existing:
+            # Initialize a new sensor entry
+            existing = {
+                'id': sensor_id,
+                # Assuming location properties still exist; fallback to 0 if they don't
+                'x': getattr(msg.location, 'x', 0) if hasattr(msg, 'location') else 0,
+                'y': getattr(msg.location, 'y', 0) if hasattr(msg, 'location') else 0,
+                'time': []
+            }
+            
+            # Dynamically initialize an empty list for each sensor reading type (e.g., 'temperature')
+            for r in msg.readings:
+                existing[r.name] = []
+                
+            sensors_new.append(existing)
+
+        # Append the new time
+        existing['time'].append(timestamp)
+        
+        # Append the new values to their respective lists
+        for r in msg.readings:
+            if r.name in existing:
+                existing[r.name].append(float(r.value))
+                
+        # Keep only the most recent readings for the chart (e.g., last 10)
+        max_history = 10
+        existing['time'] = existing['time'][-max_history:]
+        
+        for r in msg.readings:
+            if r.name in existing:
+                existing[r.name] = existing[r.name][-max_history:]
         
 
     def image_callback(self, msg):
