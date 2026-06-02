@@ -773,9 +773,13 @@ def main_page():
             battery_label.set_text('N/A')
             
         
-        for msg in alert_msgs:
-            add_log_entry(alerts_scroll, msg, "text-red-600")
+        alert_msgs_copy = alert_msgs.copy()
         alert_msgs.clear()
+        for _ in alert_msgs_copy:
+            msg = alert_msgs_copy.pop(0)
+            add_log_entry(alerts_scroll, msg, "text-red-600")
+            print("ALERT:", msg)
+        
         
         for msg in warning_msgs:
             add_log_entry(warnings_scroll, msg, "text-amber-600")
