@@ -213,12 +213,12 @@ class ROS2Interface(Node):
         #     10
         # )
 
-        self.sensor_sub = self.create_subscription(
-            TagReading,
-            '/greenhouse/telemetry',
-            self.sensor_callback_gui_new,
-            10
-        )
+        # self.sensor_sub = self.create_subscription(
+        #     TagReading,
+        #     '/greenhouse/telemetry',
+        #     self.sensor_callback_gui_new,
+        #     10
+        # )
         
         # Publisher for robot goal position
         self.goal_pos_pub = self.create_publisher(

@@ -42,7 +42,7 @@ repositories:
     # 'main' branch, commit: "Merge pull request #4 from clearpathrobotics/fix/on_deactivate"
     version: 5b001053d0de88e28f0fecc8315a55eadeee9522
 
-  lupin_greenhouse_ros:
+  lupin_greenhouse_ros_group17:
     type: git
-    url: git@gitlab.tudelft.nl:cor/ro47007/2026/group_14/lupin_greenhouse_ros.git
+    url: git@gitlab.tudelft.nl:cor/ro47007/2026/group_17/lupin-greenhouse-ros-group-17.git
     version: main
