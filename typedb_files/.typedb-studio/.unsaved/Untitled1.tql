@@ -1,4 +1,5 @@
 match
-  $plant isa plant, has id $id, has scan-status $status;
-get $id, $status;
-
+  $robot isa robot, has id "robot1";
+  $wp isa waypoint, has id "wp_0";
+insert
+  $loc (located: $robot, location: $wp) isa current-location;
