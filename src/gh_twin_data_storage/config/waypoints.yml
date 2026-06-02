@@ -1,0 +1,23 @@
+# Waypoints configuration for greenhouse digital twin
+# Format: list of waypoints with id, bin_id, x, y, yaw, and pose_source
+
+- id: "wp_start"
+  bin_id: "bin_0"
+  x: 0.0
+  y: 0.0
+  yaw: 0.0
+  pose_source: "manual_slam"
+
+- id: "wp_1"
+  bin_id: "bin_1"
+  x: 1.0
+  y: 1.0
+  yaw: 0.785
+  pose_source: "manual_slam"
+
+- id: "wp_2"
+  bin_id: "bin_2"
+  x: 2.0
+  y: 0.0
+  yaw: 1.571
+  pose_source: "manual_slam"
