@@ -390,25 +390,25 @@ def load_styles():
     }
     
     .alert-panel {
-        width: 725px;
-        height: 300px;
+        width: 37vw;
+        height: 30vh;
         background: rgba(255,255,255,0.5);
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
-        top: 800px;
-        left: 475px;
+        top: 66vh;
+        left: 22vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
     }
     
     .warning-panel {
-        width: 750px;
-        height: 300px;
+        width: 37vw;
+        height: 30vh;
         background: rgba(255,255,255,0.5);
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
-        top: 800px;
-        left: 1225px;
+        top: 66vh;
+        left: 61vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
     }
