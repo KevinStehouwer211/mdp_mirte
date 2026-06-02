@@ -159,7 +159,7 @@ sensors_new = [
 bridge = CvBridge()
 
 # Whether robot is connected or not
-robot_status = 1
+robot_status = 0
 
 #########################################################################################
 
