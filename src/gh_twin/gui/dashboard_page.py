@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from asyncio import events
+from datetime import datetime
 
 from nicegui import ui, app, events
 
@@ -12,7 +13,7 @@ from rclpy.executors import SingleThreadedExecutor
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Twist
 from sensor_msgs.msg import CompressedImage
 
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32, Bool
 from cv_bridge import CvBridge
 import cv2
 import base64
@@ -38,7 +39,7 @@ CAMERA_TOPICS = [
 
 robot_pose_topic = '/amcl_pose'
 
-battery_topic = '/battery_status'
+battery_topic = '/io/power_analyser/power'
 
 robot_goal_pos_topic = '/goal_pose'
 
@@ -86,7 +87,10 @@ battery_level = 0.0
 
 current_operating_mode = "No Mode Selected"
 
-heartbeat = None
+heartbeat_topic = '/robot_heartbeat'
+
+warning_msgs = []
+alert_msgs = []
 
 # ============================================================
 # STATIC DATA
@@ -97,7 +101,6 @@ time_points = [
     '10:10',
 
 ]
-
 
 sensor_charts = []
 
@@ -151,7 +154,7 @@ sensors_new = [
 bridge = CvBridge()
 
 # Whether robot is connected or not
-robot_status = 0
+robot_status = 1
 
 #########################################################################################
 
@@ -160,12 +163,16 @@ robot_status = 0
 class ROS2Interface(Node):
 
     def __init__(self):
-        global heartbeat
 
         super().__init__('ros2_interface')
         
-        heartbeat = self.get_time_now()
-        
+        self.heartbeat_sub = self.create_subscription(
+            Bool,
+            heartbeat_topic,
+            self.heartbeat_callback,
+            10
+        )
+
         # Subscriber for robot pose 
         self.robot_pose_sub = self.create_subscription(
             PoseWithCovarianceStamped,
@@ -227,10 +234,20 @@ class ROS2Interface(Node):
             10
         )
 
+    def heartbeat_callback(self, msg):
+        global robot_status, warning_msgs, alert_msgs
+        robot_status = 1 if msg.data else 0
+        if robot_status == 0:
+            alert_msgs.append("Robot is offline")
+            warning_msgs.append("Robot connection lost")
+        else:
+            alert_msgs.append("Robot is online")
+        
+    
     # Function to convert ROS2 pose to normalized % coordinates and store in shared dict
     def pose_callback(self, msg):
         
-        global robot_pos, robot_status, heartbeat
+        global robot_pos, robot_status
 
         ros_x = msg.pose.pose.position.x
         ros_y = msg.pose.pose.position.y
@@ -248,9 +265,7 @@ class ROS2Interface(Node):
         robot_pos['x'] = normalized_x * 100
         robot_pos['y'] = (1 - normalized_y) * 100
         robot_pos['theta'] = math.atan2(ros_rot.z, ros_rot.w) * 2 * (180 / math.pi)  # Convert to degrees
-        heartbeat = self.get_time_now() # Update heartbeat to indicate activity
         
-        robot_status = 1
         
     def switch_topic(self, topic: str):
         if self.camera_sub is not None:
@@ -397,6 +412,7 @@ class ROS2Interface(Node):
         if current_operating_mode == "Manual Mode":
             self.goal_pos_pub.publish(goal_pose)
             ui.notify(f'Navigating to position at ({ros_x:.1f}, {ros_y:.1f})')
+            alert_msgs.append(f"Navigating to ({ros_x:.1f}, {ros_y:.1f})")
         
         
     def set_operating_mode(self, mode: int):
@@ -443,6 +459,14 @@ def ros_spin():
         ros2_interface.destroy_node()
 
 
+def add_log_entry(log_container, text, text_color_class):
+    """Appends a new log entry with a real-time timestamp and auto-scrolls."""
+    timestamp = datetime.now().strftime("[%H:%M:%S]")
+    with log_container:
+        with ui.row().classes('items-center gap-2 mb-1'):
+            ui.label(timestamp).classes('text-gray-500 font-mono text-sm font-bold')
+            ui.label(text).classes(f'{text_color_class} font-mono text-sm')
+            
 # Start thread exactly once
 _ros_thread_started = False
 
@@ -466,8 +490,6 @@ def main_page():
 
     with ui.element('div').classes('main-container'):
         
-        
-        
         with ui.card().classes('side-card light-card items-stretch'):
             ui.label('Robot Status').classes('title text-left')
             robot_status_display = ui.label('Status: Offline').style('font-size:15px;')
@@ -484,9 +506,8 @@ def main_page():
                 else:
                     teleop_display.set_text('')
                 ui.notify(message)
+                alert_msgs.append(message)
                 
-            
-            
             # Handling keyboard teleop in manual mode    
             def handle_key(e: events.KeyEventArguments):
                 command = None
@@ -511,12 +532,12 @@ def main_page():
             operating_mode_dropdown = ui.dropdown_button('Select Operating Mode', auto_close=True)
                 
             with operating_mode_dropdown:
-                ui.item('Measurement Mode', on_click=lambda: set_mode('Measurement Mode', "Starting measurement mode..."))
-                ui.item('Manual Mode', on_click=lambda: set_mode('Manual Mode', "Starting manual mode..."))
-                ui.item('Pause Mission', on_click=lambda: set_mode('Pause Mission', "Pausing mission..."))
-                ui.item('Return Home', on_click=lambda: set_mode('Return Home', "Returning home..."))
-                ui.item('Reset', on_click=lambda: set_mode('Reset', "Resetting system..."))
-                ui.item('Shutdown', on_click=lambda: set_mode('Shutdown', "Shutting down..."))
+                ui.item('Measurement Mode', on_click=lambda: set_mode('Measurement Mode', "Started measurement mode"))
+                ui.item('Manual Mode', on_click=lambda: set_mode('Manual Mode', "Started manual mode"))
+                ui.item('Pause Mission', on_click=lambda: set_mode('Pause Mission', "Pausing mission"))
+                ui.item('Return Home', on_click=lambda: set_mode('Return Home', "Returning home"))
+                ui.item('Reset', on_click=lambda: set_mode('Reset', "Resetting system"))
+                ui.item('Shutdown', on_click=lambda: set_mode('Shutdown', "Shutting down"))
 
             ui.separator()
 
@@ -745,14 +766,27 @@ def main_page():
             </div>
             ''')
 
-        #with ui.card().classes('alert-card').style('bottom' 'margin:12px;'):
-            #ui.label('This dashboard is a digital twin of the greenhouse. Click anywhere on the map to send the robot there!').classes('text-center')
+        # Assuming your main map element is right above this container...
+        with ui.row().classes('w-full no-wrap gap-4 mt-4'):
+    
+            # 1. ALERTS BOX (Critical Issues)
+            with ui.card().classes('flex-1 alert-panel'):
+                ui.label('🚨 Alerts').classes('text-lg font-bold text-gray-800 border-b pb-2 w-full')
+        
+                # Scroll area defining a fixed height. Content inside will scroll dynamically.
+                alerts_scroll = ui.scroll_area().classes('h-[150px] w-full mt-2')
+
+
+            # 2. WARNINGS BOX (System Notices)
+            with ui.card().classes('flex-1 warning-panel'):
+                ui.label('⚠️ Warnings').classes('text-lg font-bold text-gray-800 border-b pb-2 w-full')
+        
+                # Scroll area matching the height of the alerts box
+                warnings_scroll = ui.scroll_area().classes('h-[150px] w-full mt-2')
+ 
 
     def update_robot():
-        global heartbeat, robot_status
-        if ros2_interface.get_time_now() - heartbeat > rclpy.duration.Duration(seconds=TIMEOUT_STATUS_OFFLINE):
-            robot_status = 0
-            # If no heartbeat for TIMEOUT_STATUS_OFFLINE seconds, consider robot disconnected
+        global robot_status, warning_msgs, alert_msgs
     
         if robot_status == 1:
             robot_status_display.set_text('Status: Online')
@@ -806,6 +840,18 @@ def main_page():
             battery_progress_bar.set_value(0.0)
             battery_label.set_text('N/A')
             
+        
+        alert_msgs_copy = alert_msgs.copy()
+        alert_msgs.clear()
+        for _ in alert_msgs_copy:
+            msg = alert_msgs_copy.pop(0)
+            add_log_entry(alerts_scroll, msg, "text-red-600")
+            print("ALERT:", msg)
+        
+        
+        for msg in warning_msgs:
+            add_log_entry(warnings_scroll, msg, "text-amber-600")
+        warning_msgs.clear()    
             
     # Update sensor charts with new random data for demonstration
     def update_chart():

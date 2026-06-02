@@ -388,6 +388,30 @@ def load_styles():
         font-weight: bold;
     }
     
+    .alert-panel {
+        width: 725px;
+        height: 300px;
+        background: rgba(255,255,255,0.5);
+        /*border-radius: 24px;*/
+        position: fixed !important;  /* fixed so it stays during scroll */
+        top: 800px;
+        left: 475px;
+        overflow: hidden;
+        /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
+    }
+    
+    .warning-panel {
+        width: 750px;
+        height: 300px;
+        background: rgba(255,255,255,0.5);
+        /*border-radius: 24px;*/
+        position: fixed !important;  /* fixed so it stays during scroll */
+        top: 800px;
+        left: 1225px;
+        overflow: hidden;
+        /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
+    }
+}
     /* =========================================================
     BLOOM ANIMATION FOR PLANTS
     ========================================================= */
