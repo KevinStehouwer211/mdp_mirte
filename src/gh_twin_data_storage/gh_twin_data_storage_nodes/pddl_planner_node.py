@@ -145,10 +145,41 @@ class PddlPlannerNode(Node):
         get $from_id, $to_id;
         """
 
-        return sorted({
-            (self._read_attr(r, "from_id"), self._read_attr(r, "to_id"))
-            for r in self._read_query(query)
-        })
+        connections = {(self._read_attr(r, "from_id"), self._read_attr(r, "to_id")) for r in self._read_query(query)}
+
+        waypoint_bin_association = self.query_waypoint_bin_association()
+
+        for waypoint_id in waypoint_bin_association.values():
+            for from_id in waypoint_id:
+                for to_id in waypoint_id:
+                    if from_id != to_id:
+                        connections.add((from_id, to_id))
+
+        return sorted(connections)
+    
+    def query_waypoint_bin_association(self):
+        query = """
+        match 
+            $wp isa waypoint, has id $wp_id, has bin-id $bin_id;
+        get $wp_id, $bin_id;
+        """
+
+        waypoint_bin_association = {}
+        for r in self._read_query(query):
+            wp_id = self._read_attr(r, "wp_id")
+            bin_id = self._read_attr(r, "bin_id")
+            
+            if bin_id not in waypoint_bin_association:
+                waypoint_bin_association[bin_id] = set()
+            waypoint_bin_association[bin_id].add(wp_id)
+
+        return {
+            bin_id: sorted(waypoint_ids)
+            for bin_id, waypoint_ids in waypoint_bin_association.items()
+            if len(waypoint_ids) > 1
+        }
+
+
 
     def query_plants_with_waypoints(self):
         query = """
