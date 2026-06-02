@@ -294,6 +294,7 @@ class PddlPlannerNode(Node):
         init = [
             f"    (robot-at {self._to_readable_pddl_name(robot_id)} {self._to_readable_pddl_name(current_wp)})"
         ]
+        init.append(f"    (wp-visited {self._to_readable_pddl_name(current_wp)})")
 
         if arm_state == "base":
             init.append(f"    (arm-base {self._to_readable_pddl_name(self.arm_id)})")
@@ -345,9 +346,8 @@ class PddlPlannerNode(Node):
             if pest["spray_status"] == "not-sprayed":
                 goal.append(f"      (pest-sprayed {self._to_readable_pddl_name(pest['pest_id'])})")
         
-        #for waypoint in waypoints:
-        #   if waypoint["wp-visited"] == "not-visited":
-        #        goal.append(f"      (wp-visited {self._to_readable_pddl_name(waypoint['wp_id'])})")
+        for waypoint_id in waypoints:
+            goal.append(f"      (wp-visited {self._to_readable_pddl_name(waypoint_id)})")
 
         if not goal:
             goal.append("      ; no pending scan or spray goals")

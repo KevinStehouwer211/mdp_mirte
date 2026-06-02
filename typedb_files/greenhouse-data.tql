@@ -5,8 +5,7 @@ insert
 $map isa slam-map,
   has id "greenhouse-map-001",
   has name "greenhouse-map",
-  has world-frame "map",
-  has timestamp 2026-05-20T12:00:00;
+  has world-frame "map";
 
 $robot isa robot,
   has id "robot1",
