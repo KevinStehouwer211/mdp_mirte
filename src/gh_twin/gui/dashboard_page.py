@@ -17,7 +17,7 @@ from cv_bridge import CvBridge
 import cv2
 import base64
 
-from gh_twin_data_storage.msg import Flower, Pest, Sensor
+from gh_twin_interfaces.msg import Flower, Pest, Sensor
 
 import random
 import math

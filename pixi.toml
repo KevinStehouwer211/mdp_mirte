@@ -22,6 +22,7 @@ ros-humble-ros2cli = "*"
 # Build tools
 colcon-common-extensions = "*"
 #cmake = "<4"
+python = "3.12.*"
 
 # Workspace dependencies
 ros-humble-ament-cmake = "*"
