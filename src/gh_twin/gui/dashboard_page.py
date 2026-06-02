@@ -38,7 +38,7 @@ CAMERA_TOPICS = [
 
 robot_pose_topic = '/amcl_pose'
 
-battery_topic = '/battery_status'
+battery_topic = '/io/power_analyser/power'
 
 robot_goal_pos_topic = '/goal_pose'
 
@@ -88,6 +88,9 @@ current_operating_mode = "No Mode Selected"
 
 heartbeat_topic = '/robot_heartbeat'
 
+warning_msgs = []
+alert_msgs = []
+
 # ============================================================
 # STATIC DATA
 # ============================================================
@@ -97,7 +100,6 @@ time_points = [
     '10:10',
 
 ]
-
 
 sensor_charts = []
 
@@ -130,7 +132,7 @@ sensors = [
 bridge = CvBridge()
 
 # Whether robot is connected or not
-robot_status = 0
+robot_status = 1
 
 #########################################################################################
 
@@ -211,8 +213,14 @@ class ROS2Interface(Node):
         )
 
     def heartbeat_callback(self, msg):
-        global robot_status
+        global robot_status, warning_msgs, alert_msgs
         robot_status = 1 if msg.data else 0
+        if robot_status == 0:
+            alert_msgs.append("Robot is offline")
+            warning_msgs.append("Robot connection lost")
+        else:
+            alert_msgs.append("Robot is online")
+        
     
     # Function to convert ROS2 pose to normalized % coordinates and store in shared dict
     def pose_callback(self, msg):
@@ -236,7 +244,6 @@ class ROS2Interface(Node):
         robot_pos['y'] = (1 - normalized_y) * 100
         robot_pos['theta'] = math.atan2(ros_rot.z, ros_rot.w) * 2 * (180 / math.pi)  # Convert to degrees
         
-        robot_status = 1
         
     def switch_topic(self, topic: str):
         if self.camera_sub is not None:
@@ -337,6 +344,7 @@ class ROS2Interface(Node):
         if current_operating_mode == "Manual Mode":
             self.goal_pos_pub.publish(goal_pose)
             ui.notify(f'Navigating to position at ({ros_x:.1f}, {ros_y:.1f})')
+            alert_msgs.append(f"Navigating to ({ros_x:.1f}, {ros_y:.1f})")
         
         
     def set_operating_mode(self, mode: int):
@@ -414,8 +422,6 @@ def main_page():
 
     with ui.element('div').classes('main-container'):
         
-        
-        
         with ui.card().classes('side-card light-card items-stretch'):
             ui.label('Robot Status').classes('title text-left')
             robot_status_display = ui.label('Status: Offline').style('font-size:15px;')
@@ -432,9 +438,8 @@ def main_page():
                 else:
                     teleop_display.set_text('')
                 ui.notify(message)
+                alert_msgs.append(message)
                 
-            
-            
             # Handling keyboard teleop in manual mode    
             def handle_key(e: events.KeyEventArguments):
                 command = None
@@ -459,12 +464,12 @@ def main_page():
             operating_mode_dropdown = ui.dropdown_button('Select Operating Mode', auto_close=True)
                 
             with operating_mode_dropdown:
-                ui.item('Measurement Mode', on_click=lambda: set_mode('Measurement Mode', "Starting measurement mode..."))
-                ui.item('Manual Mode', on_click=lambda: set_mode('Manual Mode', "Starting manual mode..."))
-                ui.item('Pause Mission', on_click=lambda: set_mode('Pause Mission', "Pausing mission..."))
-                ui.item('Return Home', on_click=lambda: set_mode('Return Home', "Returning home..."))
-                ui.item('Reset', on_click=lambda: set_mode('Reset', "Resetting system..."))
-                ui.item('Shutdown', on_click=lambda: set_mode('Shutdown', "Shutting down..."))
+                ui.item('Measurement Mode', on_click=lambda: set_mode('Measurement Mode', "Started measurement mode"))
+                ui.item('Manual Mode', on_click=lambda: set_mode('Manual Mode', "Started manual mode"))
+                ui.item('Pause Mission', on_click=lambda: set_mode('Pause Mission', "Pausing mission"))
+                ui.item('Return Home', on_click=lambda: set_mode('Return Home', "Returning home"))
+                ui.item('Reset', on_click=lambda: set_mode('Reset', "Resetting system"))
+                ui.item('Shutdown', on_click=lambda: set_mode('Shutdown', "Shutting down"))
 
             ui.separator()
 
@@ -702,10 +707,7 @@ def main_page():
         
                 # Scroll area defining a fixed height. Content inside will scroll dynamically.
                 alerts_scroll = ui.scroll_area().classes('h-[150px] w-full mt-2')
-        
-                # Add sample initial data
-                add_log_entry(alerts_scroll, "CRITICAL: Robot connection lost", "text-red-600")
-                add_log_entry(alerts_scroll, "PEST DETECTED: Row 2, Bed 1", "text-red-600")
+
 
             # 2. WARNINGS BOX (System Notices)
             with ui.card().classes('flex-1 warning-panel'):
@@ -713,14 +715,10 @@ def main_page():
         
                 # Scroll area matching the height of the alerts box
                 warnings_scroll = ui.scroll_area().classes('h-[150px] w-full mt-2')
-        
-                # Add sample initial data
-                add_log_entry(warnings_scroll, "WARN: Battery level low (18%)", "text-amber-600")
-                add_log_entry(warnings_scroll, "WARN: Camera frame rate drop", "text-amber-600")
  
 
     def update_robot():
-        global robot_status
+        global robot_status, warning_msgs, alert_msgs
     
         if robot_status == 1:
             robot_status_display.set_text('Status: Online')
@@ -774,6 +772,14 @@ def main_page():
             battery_progress_bar.set_value(0.0)
             battery_label.set_text('N/A')
             
+        
+        for msg in alert_msgs:
+            add_log_entry(alerts_scroll, msg, "text-red-600")
+        alert_msgs.clear()
+        
+        for msg in warning_msgs:
+            add_log_entry(warnings_scroll, msg, "text-amber-600")
+        warning_msgs.clear()    
             
     # Update sensor charts with new random data for demonstration
     def update_chart():
