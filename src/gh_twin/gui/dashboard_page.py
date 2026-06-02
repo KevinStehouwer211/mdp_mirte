@@ -9,6 +9,9 @@ import threading
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
+from rclpy.duration import Duration
+from rclpy.time import Time
+from rclpy.clock import ClockType
 
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Twist
 from sensor_msgs.msg import CompressedImage
@@ -29,7 +32,7 @@ import math
 # Constants
 MAP_WIDTH_METERS  = 10.0
 MAP_HEIGHT_METERS = 5.0
-TIMEOUT_STATUS_OFFLINE = 15
+TIMEOUT_STATUS_OFFLINE = 5
 
 CAMERA_TOPICS = [
     'None',
@@ -104,6 +107,8 @@ time_points = [
 
 sensor_charts = []
 
+
+
 # ------------------------------------------------
 # PLANT BEDS
 # ------------------------------------------------
@@ -154,7 +159,7 @@ sensors_new = [
 bridge = CvBridge()
 
 # Whether robot is connected or not
-robot_status = 0
+robot_status = 1
 
 #########################################################################################
 
@@ -165,6 +170,8 @@ class ROS2Interface(Node):
     def __init__(self):
 
         super().__init__('ros2_interface')
+        
+        self.timeout_counter = self.get_time_now()
         
         self.heartbeat_sub = self.create_subscription(
             Bool,
@@ -235,13 +242,13 @@ class ROS2Interface(Node):
         )
 
     def heartbeat_callback(self, msg):
-        global robot_status, warning_msgs, alert_msgs
-        robot_status = 1 if msg.data else 0
+        global robot_status, warning_msgs, alert_msgs, timeout_counter
         if robot_status == 0:
             alert_msgs.append("Robot is offline")
             warning_msgs.append("Robot connection lost")
         else:
             alert_msgs.append("Robot is online")
+            timeout_counter = self.get_time_now()
         
     
     # Function to convert ROS2 pose to normalized % coordinates and store in shared dict
@@ -433,7 +440,10 @@ class ROS2Interface(Node):
         self.teleop_pub.publish(cmd)
         
     def get_time_now(self):
-        return self.get_clock().now()
+        return self.get_clock().now().to_msg().sec
+    
+    def get_timeout_counter(self):
+        return self.timeout_counter
 
 
 # ============================================================
@@ -821,6 +831,10 @@ def main_page():
             
             battery_progress_bar.set_value(battery_level)
             battery_label.set_text(f'{battery_level*100:.0f}%')
+            if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
+                robot_status = 0
+                alert_msgs.append("Robot connection timed out")
+                warning_msgs.append("Robot connection lost")
             
         else:
             robot_status_display.set_text('Status: Offline')
@@ -839,6 +853,7 @@ def main_page():
             battery_progress_bar.props('color=grey')
             battery_progress_bar.set_value(0.0)
             battery_label.set_text('N/A')
+            
             
         
         alert_msgs_copy = alert_msgs.copy()
