@@ -91,13 +91,14 @@ ros-humble-nav2-bringup = "*"
 ros-humble-laser-filters = "*"
 
 [activation]
-#scripts = ["install/setup.bash"]
+scripts = ["pixi_activation.sh"]
 
 [pypi-dependencies]
 vcstool = ">=0.3.0, <0.4"
 cmake = "==3.22.1"
 nicegui = "*"
 mdp-greenhouse = ">=1.0.7, <2"
+typedb-driver = ">=2.28,<3"
 
 [activation.env]
 GAZEBO_SUPPRESS_EOL_WARNING = "1"
