@@ -206,10 +206,17 @@ class ROS2Interface(Node):
             10
         )
         
+        # self.sensor_sub = self.create_subscription(
+        #     Sensor,
+        #     'sensor_data',
+        #     self.sensor_callback_gui,
+        #     10
+        # )
+
         self.sensor_sub = self.create_subscription(
-            Sensor,
-            'sensor_data',
-            self.sensor_callback_gui,
+            TagReading,
+            '/greenhouse/telemetry',
+            self.sensor_callback_gui_new,
             10
         )
         

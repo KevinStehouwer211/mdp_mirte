@@ -4,6 +4,9 @@ import rclpy
 from rclpy.node import Node
 from gh_twin_interfaces.msg import Pest, Flower, Sensor
 from typedb.driver import TypeDB, SessionType, TransactionType
+from std_msgs.msg import String
+from lupin_greenhouse_msgs.srv import GetTagReading
+from lupin_greenhouse_msgs.msg import TagReading
 import yaml
 
 
@@ -33,6 +36,16 @@ class TypeDBStorageNode(Node):
         self.create_subscription(Flower, 'flower_data', self.flower_callback, 10)
         self.create_subscription(Pest, 'pest_data', self.pest_callback, 10)
         self.create_subscription(Sensor, 'sensor_data', self.sensor_callback, 10)
+
+        self.sensor_tag_sub = self.create_subscription(
+            String, 
+            '/vision/scanned_tag', # TODO: Update this topic name to match your actual vision output topic
+            self.vision_tag_callback, 
+            10
+        )
+
+        self.bridge_client = self.create_client(GetTagReading, '/greenhouse_bridge/get_tag_reading')
+        self.hmi_publisher = self.create_publisher(TagReading, '/greenhouse/telemetry', 10)
 
         self.get_logger().info('Typedb storage node is ready to receive flower, pest, and sensor messages.')
 
@@ -309,6 +322,54 @@ class TypeDBStorageNode(Node):
                 self.get_logger().info(f"Inserted reading {reading_id} for scan {scan_id}")
             except Exception as exception:
                 self.get_logger().error(f"Failed to insert reading {reading_id}: {exception}")
+
+    def vision_tag_callback(self, msg: String):
+        """
+        Triggered automatically when the vision node broadcasts a newly scanned tag.
+        """
+        tag_id = msg.data
+        self.request_tag_reading(tag_id)
+
+    def request_tag_reading(self, tag_id: str):
+        """
+        Call this method whenever a tag is scanned (e.g., triggered by your vision/scheduler pipeline).
+        It sends an asynchronous request to the greenhouse bridge service.
+        """
+        # Wait for the service to be available so we don't crash on an unready system
+        if not self.bridge_client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().error('Service /greenhouse_bridge/get_tag_reading not available!')
+            return
+
+        # Construct the request payload
+        request = GetTagReading.Request()
+        request.tag_id = str(tag_id)
+
+        # Invoke the service asynchronously and attach a callback for when the response arrives
+        self.get_logger().info(f"Sending service request to bridge for Tag ID: {tag_id}")
+        future = self.bridge_client.call_async(request)
+        future.add_done_callback(self.bridge_service_callback)
+
+    def bridge_service_callback(self, future):
+        """
+        Callback triggered automatically when the greenhouse bridge responds.
+        """
+        try:
+            response = future.result()
+            self.get_logger().info("Received successful service response from greenhouse bridge.")
+            
+            # --- TypeDB Processing Section ---
+            # Add stuff here?
+            
+            # --- HMI Relaying Section ---
+            # Extract the TagReading message payload from the response and publish it
+            # so that your GUI / HMI node can consume it.
+            hmi_msg = response.reading
+            
+            self.hmi_publisher.publish(hmi_msg)
+            self.get_logger().info(f"Relayed telemetry for Tag {hmi_msg.tag_id} over /greenhouse/telemetry topic.")
+
+        except Exception as e:
+            self.get_logger().error(f"Service call failed: {str(e)}")
 
 
 def main(args=None):
