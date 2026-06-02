@@ -10,14 +10,6 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + ros_package_name]),
         ('share/' + ros_package_name, ['package.xml']),
-        ('share/' + ros_package_name + '/launch', [
-            'launch/pddl_planner.launch.py',
-            'launch/task_scheduler.launch.py',
-            'launch/typedb.launch.py',
-        ]),
-        ('share/' + ros_package_name + '/config', [
-            'config/waypoints.yml',
-        ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

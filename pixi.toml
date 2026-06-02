@@ -22,6 +22,7 @@ ros-humble-ros2cli = "*"
 # Build tools
 colcon-common-extensions = "*"
 #cmake = "<4"
+python = "3.12.*"
 
 # Workspace dependencies
 ros-humble-ament-cmake = "*"
@@ -96,6 +97,7 @@ ros-humble-laser-filters = "*"
 vcstool = ">=0.3.0, <0.4"
 cmake = "==3.22.1"
 nicegui = "*"
+mdp-greenhouse = ">=1.0.7, <2"
 
 [activation.env]
 GAZEBO_SUPPRESS_EOL_WARNING = "1"

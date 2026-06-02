@@ -17,7 +17,7 @@ from cv_bridge import CvBridge
 import cv2
 import base64
 
-from gh_twin_data_storage.msg import Flower, Pest, Sensor
+from gh_twin_interfaces.msg import Flower, Pest, Sensor
 
 import random
 import math
@@ -255,8 +255,8 @@ class ROS2Interface(Node):
         # Create or update plant entry
         plant_entry = {
             'id': f'P{msg.id}',
-            'x': msg.robot_pose.position.x if msg.robot_pose else 0,
-            'y': msg.robot_pose.position.y if msg.robot_pose else 0,
+            'x': msg.location.x if msg.location else 0,
+            'y': msg.location.y if msg.location else 0,
             'bloomed': msg.bloomed,
             'color': color,
         }
