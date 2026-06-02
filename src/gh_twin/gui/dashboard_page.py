@@ -255,8 +255,8 @@ class ROS2Interface(Node):
         # Create or update plant entry
         plant_entry = {
             'id': f'P{msg.id}',
-            'x': msg.robot_pose.position.x if msg.robot_pose else 0,
-            'y': msg.robot_pose.position.y if msg.robot_pose else 0,
+            'x': msg.location.x if msg.location else 0,
+            'y': msg.location.y if msg.location else 0,
             'bloomed': msg.bloomed,
             'color': color,
         }
