@@ -775,6 +775,23 @@ def main_page():
             # destroyed and re-created on every tick.
             # ------------------------------------------------
 
+            # ui.html('''
+            # <div
+            #     id="robot-marker"
+            #     class="robot"
+            #     style="
+            #         left:50%;
+            #         top:50%;
+            #     ">
+            #     <div class="tooltip">
+            #         <b>Robot</b>
+            #         <br>
+            #     <span id="robot-pos">
+            #         Position: (50%, 50%)
+            #     </span>
+            #     </div>
+            # </div>
+            # ''')
             ui.html('''
             <div
                 id="robot-marker"
@@ -782,8 +799,12 @@ def main_page():
                 style="
                     left:50%;
                     top:50%;
-                ">
-                <div class="tooltip">
+                    cursor: pointer;
+                "
+                onmouseenter="document.getElementById('robot-tooltip').style.display='block'"
+                onmouseleave="document.getElementById('robot-tooltip').style.display='none'"
+            >
+                <div id="robot-tooltip" class="tooltip-js" style="display: none; pointer-events: auto;">
                     <b>Robot</b>
                     <br>
                 <span id="robot-pos">
