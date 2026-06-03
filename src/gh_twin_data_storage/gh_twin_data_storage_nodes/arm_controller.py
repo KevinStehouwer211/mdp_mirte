@@ -133,6 +133,23 @@ class ArmController(Node):
         goal.trajectory = trajectory
         return goal
 
+    def execute_spray_sequence(self) -> ArmExitCode:
+        """
+        Execute the spray sweep: sequ_home → P1 → P2 → P1 → P2 → P1 → sequ_home.
+        Returns on the first failure; otherwise returns SUCCEEDED.
+        """
+        sequence = ["sequ_home", "sequ_p1", "sequ_p2", "sequ_p1", "sequ_p2", "sequ_p1", "sequ_home"]
+        for pose_name in sequence:
+            self.get_logger().info(f"Spray sequence: moving to '{pose_name}'")
+            exit_code = self.move_arm_to_pose(pose_name)
+            if exit_code != ArmExitCode.SUCCEEDED:
+                self.get_logger().error(
+                    f"Spray sequence aborted at '{pose_name}': {exit_code.name}"
+                )
+                return exit_code
+        self.get_logger().info("Spray sequence complete")
+        return ArmExitCode.SUCCEEDED
+
     def _feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback
         if feedback.actual.positions:

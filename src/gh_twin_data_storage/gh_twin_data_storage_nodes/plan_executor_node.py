@@ -400,29 +400,31 @@ class PlanExecutorNode(Node):
         self.get_logger().info(f"Updated TypeDB current-location to {waypoint_id}")
 
     def execute_arm_action(self, action: Dict):
-        if action["name"] == "scan":
-            arm_pose = "scan"
-            self.get_logger().info(f"Moving arm to scan position.")
-        
-        elif action["name"] == "spray":
-            arm_pose = "spray"
-            self.get_logger().info(f"Moving arm to spray position.")
-        else:
-            self.get_logger().info(f"skipping arm action due to unknown action name.")
-        
         arm_controller = self.get_arm_controller()
 
-        exit_code = arm_controller.move_arm_to_pose(arm_pose)
-        if exit_code != ArmExitCode.SUCCEEDED:
-            raise RuntimeError(f"Arm failed to reach pose '{arm_pose}': {exit_code.name}")
-        self.replace_current_arm_pose(arm_pose)
+        if action["name"] == "scan":
+            self.get_logger().info("Moving arm to scan position.")
+            exit_code = arm_controller.move_arm_to_pose("scan")
+            if exit_code != ArmExitCode.SUCCEEDED:
+                raise RuntimeError(f"Arm failed to reach scan pose: {exit_code.name}")
+            self.replace_current_arm_pose("scan")
 
-        self.execute_wait(action)
+            self.execute_wait(action)
 
-        exit_code = arm_controller.move_arm_to_pose("base")
-        if exit_code != ArmExitCode.SUCCEEDED:
-            raise RuntimeError(f"Arm failed to return to base: {exit_code.name}")
-        self.replace_current_arm_pose("base")
+            exit_code = arm_controller.move_arm_to_pose("base")
+            if exit_code != ArmExitCode.SUCCEEDED:
+                raise RuntimeError(f"Arm failed to return to base: {exit_code.name}")
+            self.replace_current_arm_pose("base")
+
+        elif action["name"] == "spray":
+            self.get_logger().info("Executing spray sequence.")
+            exit_code = arm_controller.execute_spray_sequence()
+            if exit_code != ArmExitCode.SUCCEEDED:
+                raise RuntimeError(f"Spray sequence failed: {exit_code.name}")
+            self.replace_current_arm_pose("base")
+
+        else:
+            self.get_logger().warn(f"Skipping unknown arm action: {action['name']}")
 
     def get_arm_controller(self) -> ArmController:
         if self.arm_controller is None:

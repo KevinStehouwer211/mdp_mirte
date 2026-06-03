@@ -90,6 +90,15 @@ poses:
   spray:
     positions: [0, -45, 70, 0]
     duration_sec: 3
+  sequ_home:
+    positions: [0, 0, 0, 0]
+    duration_sec: 2
+  sequ_p1:
+    positions: [0, -45, 45, 0]
+    duration_sec: 2
+  sequ_p2:
+    positions: [0, -60, 60, 0]
+    duration_sec: 2
 """
 
 
@@ -146,6 +155,19 @@ def _wire_action(arm: ArmController, accepted: bool = True,
     arm._action_client.send_goal_async.return_value = _immediate_future(handle)
 
 
+def _wire_sequence(arm: ArmController, error_codes: list):
+    """
+    Configure arm._action_client to return a different result for each
+    successive send_goal_async call.  Pass one error_code per expected call;
+    the list is used as a side_effect so Mock pops one entry per call.
+    """
+    futures = [
+        _immediate_future(_goal_handle(accepted=True, error_code=code))
+        for code in error_codes
+    ]
+    arm._action_client.send_goal_async.side_effect = futures
+
+
 # ---------------------------------------------------------------------------
 # Test classes
 # ---------------------------------------------------------------------------
@@ -162,10 +184,13 @@ class TestInit(unittest.TestCase):
         self.assertEqual(arm._poses, {})
 
     def test_init_loads_all_poses(self):
-        """All four poses in the config are loaded correctly."""
+        """All poses in the config are loaded correctly."""
         arm = _make_arm()
         self.assertTrue(arm._init_complete)
-        self.assertEqual(sorted(arm._poses.keys()), ["base", "home", "scan", "spray"])
+        self.assertEqual(
+            sorted(arm._poses.keys()),
+            ["base", "home", "scan", "sequ_home", "sequ_p1", "sequ_p2", "spray"],
+        )
 
     def test_init_loads_joint_names(self):
         """Joint names from the config are stored on the controller."""
@@ -345,6 +370,77 @@ class TestConfigEdgeCases(unittest.TestCase):
         _wire_action(arm, accepted=True, error_code=0)
         # 'base' has no duration_sec in the default config
         self.assertEqual(arm.move_arm_to_pose("base"), ArmExitCode.SUCCEEDED)
+
+
+# ---------------------------------------------------------------------------
+
+SPRAY_SEQUENCE = ["sequ_home", "sequ_p1", "sequ_p2", "sequ_p1", "sequ_p2", "sequ_p1", "sequ_home"]
+
+
+class TestSpraySequence(unittest.TestCase):
+
+    def test_full_sequence_succeeds(self):
+        """All 7 moves succeed → SUCCEEDED."""
+        arm = _make_arm()
+        _wire_sequence(arm, [0] * 7)
+        self.assertEqual(arm.execute_spray_sequence(), ArmExitCode.SUCCEEDED)
+
+    def test_sequence_makes_seven_calls(self):
+        """Exactly 7 goals are sent to the action server."""
+        arm = _make_arm()
+        _wire_sequence(arm, [0] * 7)
+        arm.execute_spray_sequence()
+        self.assertEqual(arm._action_client.send_goal_async.call_count, 7)
+
+    def test_sequence_correct_pose_order(self):
+        """Poses are visited in the exact order: sequ_home P1 P2 P1 P2 P1 sequ_home."""
+        arm = _make_arm()
+        _wire_sequence(arm, [0] * 7)
+
+        visited = []
+        original_move = arm.move_arm_to_pose
+        arm.move_arm_to_pose = lambda name: (visited.append(name), original_move(name))[1]
+
+        arm.execute_spray_sequence()
+        self.assertEqual(visited, SPRAY_SEQUENCE)
+
+    def test_sequence_aborts_on_first_step_failure(self):
+        """Failure on the opening sequ_home stops immediately after 1 call."""
+        arm = _make_arm()
+        _wire_sequence(arm, [-1] + [0] * 6)   # step 1 → INVALID_GOAL
+        result = arm.execute_spray_sequence()
+        self.assertEqual(result, ArmExitCode.INVALID_GOAL)
+        self.assertEqual(arm._action_client.send_goal_async.call_count, 1)
+
+    def test_sequence_aborts_mid_sequence(self):
+        """Failure on step 4 (second P1) stops there and reports the failure."""
+        arm = _make_arm()
+        _wire_sequence(arm, [0, 0, 0, -99, 0, 0, 0])   # step 4 → FAILED
+        result = arm.execute_spray_sequence()
+        self.assertEqual(result, ArmExitCode.FAILED)
+        self.assertEqual(arm._action_client.send_goal_async.call_count, 4)
+
+    def test_sequence_aborts_on_final_return(self):
+        """Failure on the closing sequ_home is still reported after all 7 calls."""
+        arm = _make_arm()
+        _wire_sequence(arm, [0] * 6 + [-1])   # step 7 → INVALID_GOAL
+        result = arm.execute_spray_sequence()
+        self.assertEqual(result, ArmExitCode.INVALID_GOAL)
+        self.assertEqual(arm._action_client.send_goal_async.call_count, 7)
+
+    def test_sequence_missing_pose_returns_unknown_pose(self):
+        """Missing sequence poses in the config → UNKNOWN_POSE, no goal sent."""
+        minimal = (
+            "joint_names: [j1, j2, j3, j4]\n"
+            "motion_duration_sec: 2.0\n"
+            "poses:\n"
+            "  home:\n"
+            "    positions: [0, 0, 0, 0]\n"
+        )
+        arm = _make_arm(config=minimal)
+        result = arm.execute_spray_sequence()
+        self.assertEqual(result, ArmExitCode.UNKNOWN_POSE)
+        arm._action_client.send_goal_async.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
