@@ -16,7 +16,7 @@ from typedb.driver import SessionType, TransactionType
 
 from gh_twin.nav_to_pose import ExitCode, NavToPose
 from gh_twin_data_storage_nodes.pddl_planner_node import PddlPlannerNode
-from gh_twin_data_storage_nodes.arm_controller import ArmController
+from gh_twin_data_storage_nodes.arm_controller import ArmController, ArmExitCode
 
 class PlanAborted(Exception):
     pass
@@ -52,6 +52,7 @@ class PlanExecutorNode(Node):
         self.declare_parameter("database_name", "greenhouse")
         self.declare_parameter("operating_mode_topic", "/operating_mode")
         self.declare_parameter("robot_heartbeat_topic", "/robot_heartbeat")
+        self.declare_parameter("arm_poses_file", "")
         
         self.domain_file = Path(self.get_parameter("domain_file").value)
         self.problem_file = Path(self.get_parameter("problem_file").value)
@@ -410,16 +411,24 @@ class PlanExecutorNode(Node):
             self.get_logger().info(f"skipping arm action due to unknown action name.")
         
         arm_controller = self.get_arm_controller()
-        arm_controller.move_arm_to_pose(arm_pose)
+
+        exit_code = arm_controller.move_arm_to_pose(arm_pose)
+        if exit_code != ArmExitCode.SUCCEEDED:
+            raise RuntimeError(f"Arm failed to reach pose '{arm_pose}': {exit_code.name}")
         self.replace_current_arm_pose(arm_pose)
-        self.execute_wait(action) #not sure if this is necessary in regard to collecting data
-        arm_controller.move_arm_to_pose("base")
+
+        self.execute_wait(action)
+
+        exit_code = arm_controller.move_arm_to_pose("base")
+        if exit_code != ArmExitCode.SUCCEEDED:
+            raise RuntimeError(f"Arm failed to return to base: {exit_code.name}")
         self.replace_current_arm_pose("base")
 
     def get_arm_controller(self) -> ArmController:
         if self.arm_controller is None:
+            config_file = self.get_parameter("arm_poses_file").value or None
             self.get_logger().info("Initializing arm controller")
-            self.arm_controller = ArmController()
+            self.arm_controller = ArmController(config_file=config_file)
         return self.arm_controller
 
     def replace_current_arm_pose(self, arm_pose):
