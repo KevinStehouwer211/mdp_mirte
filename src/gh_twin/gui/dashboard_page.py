@@ -694,57 +694,123 @@ def main_page():
                         ).classes('tooltip-btn').props('no-caps unelevated')
 
             # Plotting sensors
-            
-            for sensor in sensors:
+            for sensor in sensors_new:
                 sid = sensor['id']
+                
+                # Define which metric this specific sensor should start with
+                initial_metric = 'temperature'
+                
                 with ui.element('div').style(
-                    f'position:absolute;'
-                    f'left:{sensor["x"]}px;'
-                    f'top:{sensor["y"]}px;'
-                    f'z-index:10;'
-                    f'overflow:visible;'
+                    f'position:absolute; left:{sensor["x"]}px; top:{sensor["y"]}px; z-index:10; overflow:visible;'
                 ).classes('entity'):
 
                     ui.image('sensor.png').style(
-                        'width:28px;'
-                        'height:28px;'
-                        'cursor:pointer;'
-                        'background: transparent;'
-                        'transition: transform 0.2s ease;'
+                        'width:28px; height:28px; cursor:pointer; background: transparent; transition: transform 0.2s ease;'
                     )
 
                     with ui.element('div').classes('tooltip').props('pointer-events-auto'):
-                        
-                        with ui.card().style('width:300px; border-radius:20px;'):
+                        with ui.card().style('width:320px; border-radius:20px; padding: 15px;'):
+                            
+                            # Header layout: Sensor ID on the left, Selector dropdown on the right
+                            with ui.row().classes('w-full justify-between items-center no-wrap q-mb-sm'):
+                                ui.label(f'Sensor {sid}').classes('text-bold text-lg')
+                                
+                                # Local dropdown selector inside this specific card
+                                metric_selector = ui.select(
+                                    options={'temperature': 'Temp', 'humidity': 'Humid', 'co2': 'CO2', 'light': 'Light'},
+                                    value=initial_metric
+                                ).props('dense options-dense outlined').style('width: 110px;')
 
+                            # Initialize the EChart using .get() to safely fall back to [] if initial_metric is missing
                             chart = ui.echart({
-
                                 'backgroundColor': 'transparent',
-
                                 'animation': True,
-
                                 'tooltip': {'trigger': 'axis'},
+                                'xAxis': {
+                                    'type': 'category', 
+                                    'data': sensor.get('time', []),  # Safe timescale fallback
+                                    'boundaryGap': False,
+                                    'name': 'Time'
+                                },
+                                'yAxis': {
+                                    'type': 'value', 
+                                    'name': initial_metric.capitalize()
+                                },
+                                'series': [{
+                                    'data': sensor.get(initial_metric, []),  # Safe data fallback
+                                    'type': 'line', 
+                                    'smooth': True, 
+                                    'areaStyle': {}
+                                }],
+                            }).style('height:220px; width: 100%;')
+                            
+                            # Define the local update behavior when THIS dropdown changes
+                            # We use a closure pattern (s=sensor, c=chart) to bind this specific chart instance
+                            def make_update_handler(s=sensor, c=chart):
+                                return lambda e: [
+                                    c.options['series'][0].update({'data': s.get(e.value, [])}),
+                                    c.options['yAxis'].update({'name': e.value.capitalize()}),
+                                    c.update()
+                                ]
+                            
+                            # Attach the update event to the local selector
+                            metric_selector.on_value_change(make_update_handler())
 
-                                'xAxis': {'type': 'category','data': time_points,'boundaryGap': False,},
-
-                                'yAxis': {'type': 'value','name': 'units',},
-
-                                'series': [
-                                    {'data': sensor["data"], 'type': 'line', 'smooth': True, 'areaStyle': {},}
-                                ],
-
-                            }).style(
-                            '   height:300px'
-                            )
-                        sensor_charts.append({
-                            'chart': chart,
-                            'data': sensor["data"],
-                        })
-                        
                         ui.button(
                             'Take Reading',
                             on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
                         ).classes('tooltip-btn').props('no-caps unelevated')
+            
+            # for sensor in sensors:
+            #     sid = sensor['id']
+            #     with ui.element('div').style(
+            #         f'position:absolute;'
+            #         f'left:{sensor["x"]}px;'
+            #         f'top:{sensor["y"]}px;'
+            #         f'z-index:10;'
+            #         f'overflow:visible;'
+            #     ).classes('entity'):
+
+            #         ui.image('sensor.png').style(
+            #             'width:28px;'
+            #             'height:28px;'
+            #             'cursor:pointer;'
+            #             'background: transparent;'
+            #             'transition: transform 0.2s ease;'
+            #         )
+
+            #         with ui.element('div').classes('tooltip').props('pointer-events-auto'):
+                        
+            #             with ui.card().style('width:300px; border-radius:20px;'):
+
+            #                 chart = ui.echart({
+
+            #                     'backgroundColor': 'transparent',
+
+            #                     'animation': True,
+
+            #                     'tooltip': {'trigger': 'axis'},
+
+            #                     'xAxis': {'type': 'category','data': time_points,'boundaryGap': False,},
+
+            #                     'yAxis': {'type': 'value','name': 'units',},
+
+            #                     'series': [
+            #                         {'data': sensor["data"], 'type': 'line', 'smooth': True, 'areaStyle': {},}
+            #                     ],
+
+            #                 }).style(
+            #                 '   height:300px'
+            #                 )
+            #             sensor_charts.append({
+            #                 'chart': chart,
+            #                 'data': sensor["data"],
+            #             })
+                        
+                        # ui.button(
+                        #     'Take Reading',
+                        #     on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
+                        # ).classes('tooltip-btn').props('no-caps unelevated')
 
 
             # ------------------------------------------------
