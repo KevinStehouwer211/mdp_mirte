@@ -144,7 +144,7 @@ sensors_new = [
         'id': 'S2',
         'x': 770, 'y': 120,
         'humidity': [22,22.4,22.8],
-        'temperature': [24,24.5,25],
+        # 'temperature': [24,24.5,25],
         'co2': [400,410,420],
         'light': [300,320,350],
         'time': [0,1,2]
@@ -714,7 +714,6 @@ def main_page():
                     )
 
                     # --- STEP 2: Bind visibility to NiceGUI's conditional styling instead of pure CSS ---
-                    # We start with 'display: none'
                     tooltip_card = ui.element('div').classes('tooltip-js').style('display: none;').props('pointer-events-auto')
                     
                     with tooltip_card:
@@ -728,13 +727,11 @@ def main_page():
                                     value=initial_metric
                                 ).props('dense options-dense outlined').style('width: 110px;')
 
-                                # --- STEP 3: Listen to Quasar's popup open/close events ---
-                                # When the menu drops down, lock the window open. When it closes, release the lock.
-                                metric_selector.on('popup-show', lambda: state.update({'is_dropdown_open': True}))
-                                metric_selector.on('popup-hide', lambda: [
-                                    state.update({'is_dropdown_open': False}),
-                                    # Force hide if the mouse left while the dropdown was actively open
-                                    tooltip_card.style('display: none') 
+                                # --- STEP 3: Listen to Quasar's popup open/close events (FIXED WITH DEFAULT ARGS) ---
+                                metric_selector.on('popup-show', lambda st=state: st.update({'is_dropdown_open': True}))
+                                metric_selector.on('popup-hide', lambda e, st=state, tc=tooltip_card: [
+                                    st.update({'is_dropdown_open': False}),
+                                    tc.style('display: none') 
                                 ])
 
                             # The Chart
@@ -761,9 +758,10 @@ def main_page():
                             on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
                         ).classes('tooltip-btn').props('no-caps unelevated')
 
-                    # --- STEP 4: Wire up Python mouse hover triggers onto the outer container ---
-                    entity_container.on('mouseenter', lambda: tooltip_card.style('display: block'))
-                    entity_container.on('mouseleave', lambda: tooltip_card.style('display: none') if not state['is_dropdown_open'] else None)        
+                    # --- STEP 4: Wire up Python mouse hover triggers (FIXED WITH DEFAULT ARGS) ---
+                    entity_container.on('mouseenter', lambda e, tc=tooltip_card: tc.style('display: block'))
+                    entity_container.on('mouseleave', lambda e, tc=tooltip_card, st=state: \
+                        tc.style('display: none') if not st['is_dropdown_open'] else None)        
             
 
 
