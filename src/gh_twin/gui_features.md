@@ -34,3 +34,6 @@
 - display error codes 
 - define pointing direction for the robot
 
+
+# v1.3
+- Greenhouse layout must be kept in fixed proportion

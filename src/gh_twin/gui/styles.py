@@ -69,7 +69,7 @@ def load_styles():
     ========================================================= */
 
     .side-card {
-        width: 430px;
+        width: 20%;
         height: 100vh;           /* fill full page height */
         padding: 32px;
         border-radius: 0 5px 5px 0;   /* flat on left edge, rounded on right */
@@ -264,13 +264,14 @@ def load_styles():
     }
 
     .map-panel {
-        width: 1500px;
-        height: 750px;
+        position: absolute;
+        width: 76vw;
+        height: 60vh;
         background: rgba(255,255,255,0.5);
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
-        top: 25px;
-        left: 475px;
+        top: 2vh;
+        left: 22vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
     }
@@ -279,8 +280,8 @@ def load_styles():
         position: absolute;
         left: 0px;
         top: 0px;
-        width: 1500px;
-        height: 750px;
+        width: 76vw;
+        height: 60vh;
         border: 3px solid black;
         box-sizing: border-box;
     }
@@ -302,8 +303,8 @@ def load_styles():
 
     .plant-bed {
         position: absolute;
-        width: 62px;
-        height: 180px;
+        width: 3vw;
+        height: 15vh;
         background: #92745B;
         /*border-radius: 14px;*/
         border: 3px dotted black;
@@ -389,29 +390,29 @@ def load_styles():
     }
     
     .alert-panel {
-        width: 725px;
-        height: 300px;
+        width: 37vw;
+        height: 30vh;
         background: rgba(255,255,255,0.5);
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
-        top: 800px;
-        left: 475px;
+        top: 66vh;
+        left: 22vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
     }
     
     .warning-panel {
-        width: 750px;
-        height: 300px;
+        width: 37vw;
+        height: 30vh;
         background: rgba(255,255,255,0.5);
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
-        top: 800px;
-        left: 1225px;
+        top: 66vh;
+        left: 61vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
     }
-}
+    
     /* =========================================================
     BLOOM ANIMATION FOR PLANTS
     ========================================================= */
