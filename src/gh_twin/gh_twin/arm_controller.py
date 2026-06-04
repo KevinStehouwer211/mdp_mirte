@@ -38,7 +38,8 @@ class ArmController(Node):
         self._joint_names: List[str] = []
         self._motion_duration_sec: float = 3.0
         self._init_complete = False
-        self.ARM_TIMEOUT = 30.0
+        self.ARM_ACCEPT_TIMEOUT = 1.0
+        self.ARM_MOVE_TIMEOUT = 5.0
 
         if config_file:
             self._load_config(config_file)
@@ -92,18 +93,33 @@ class ArmController(Node):
         self.get_logger().info(f"Sending arm to pose '{pose_name}'")
         goal_msg = self._build_goal(pose_name)
 
-        send_goal_future = self._action_client.send_goal_async(
-            goal_msg,
-            feedback_callback=self._feedback_callback,
-        )
+        max_attempts = 3
+        send_goal_future = None
+        for attempt in range(1, max_attempts + 1):
+            send_goal_future = self._action_client.send_goal_async(
+                goal_msg,
+                feedback_callback=self._feedback_callback,
+            )
 
-        # Spin until goal acceptance, mirroring the nav_to_pose spin-once loop.
-        start = time.monotonic()
-        while rclpy.ok() and not send_goal_future.done():
-            rclpy.spin_once(self, timeout_sec=0.1)
-            if time.monotonic() - start > self.ARM_TIMEOUT:
-                self.get_logger().error("Timed out waiting for goal acceptance")
-                return ArmExitCode.TIMEOUT
+            # Spin until goal acceptance, mirroring the nav_to_pose spin-once loop.
+            start = time.monotonic()
+            while rclpy.ok() and not send_goal_future.done():
+                rclpy.spin_once(self, timeout_sec=0.2)
+                if time.monotonic() - start > self.ARM_ACCEPT_TIMEOUT:
+                    if attempt < max_attempts:
+                        self.get_logger().warning(
+                            f"Timed out waiting for goal acceptance (attempt {attempt}/{max_attempts}), retrying"
+                        )
+                        time.sleep(0.1)
+                        break
+                    self.get_logger().error("Timed out waiting for goal acceptance")
+                    return ArmExitCode.TIMEOUT
+
+            if send_goal_future.done():
+                break
+
+        if not send_goal_future or not send_goal_future.done():
+            return ArmExitCode.TIMEOUT
 
         goal_handle = send_goal_future.result()
         if not goal_handle.accepted:
@@ -117,7 +133,7 @@ class ArmController(Node):
         start = time.monotonic()
         while rclpy.ok() and not result_future.done():
             rclpy.spin_once(self, timeout_sec=0.1)
-            if time.monotonic() - start > self.ARM_TIMEOUT:
+            if time.monotonic() - start > self.ARM_MOVE_TIMEOUT:
                 self.get_logger().error(f"Timed out waiting for result for pose '{pose_name}'")
                 return ArmExitCode.TIMEOUT
 
