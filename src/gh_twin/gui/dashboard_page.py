@@ -250,6 +250,7 @@ class ROS2Interface(Node):
 
     def heartbeat_callback(self, msg):
         global robot_status, warning_msgs, alert_msgs, timeout_counter
+        robot_status = 1 if msg.data else 0
         if robot_status == 0:
             alert_msgs.append("Robot is offline")
             warning_msgs.append("Robot connection lost")
