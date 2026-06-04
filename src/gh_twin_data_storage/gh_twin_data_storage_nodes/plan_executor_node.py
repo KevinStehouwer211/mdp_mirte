@@ -16,7 +16,7 @@ from typedb.driver import SessionType, TransactionType
 
 from gh_twin.nav_to_pose import ExitCode, NavToPose
 from gh_twin_data_storage_nodes.pddl_planner_node import PddlPlannerNode
-from gh_twin_data_storage_nodes.arm_controller import ArmController
+from gh_twin.arm_controller import ArmController, ArmExitCode
 
 class PlanAborted(Exception):
     pass
@@ -52,6 +52,7 @@ class PlanExecutorNode(Node):
         self.declare_parameter("database_name", "greenhouse")
         self.declare_parameter("operating_mode_topic", "/operating_mode")
         self.declare_parameter("robot_heartbeat_topic", "/robot_heartbeat")
+        self.declare_parameter("arm_poses_file", "")
         
         self.domain_file = Path(self.get_parameter("domain_file").value)
         self.problem_file = Path(self.get_parameter("problem_file").value)
@@ -399,27 +400,37 @@ class PlanExecutorNode(Node):
         self.get_logger().info(f"Updated TypeDB current-location to {waypoint_id}")
 
     def execute_arm_action(self, action: Dict):
-        if action["name"] == "scan":
-            arm_pose = "scan"
-            self.get_logger().info(f"Moving arm to scan position.")
-        
-        elif action["name"] == "spray":
-            arm_pose = "spray"
-            self.get_logger().info(f"Moving arm to spray position.")
-        else:
-            self.get_logger().info(f"skipping arm action due to unknown action name.")
-        
         arm_controller = self.get_arm_controller()
-        arm_controller.move_arm_to_pose(arm_pose)
-        self.replace_current_arm_pose(arm_pose)
-        self.execute_wait(action) #not sure if this is necessary in regard to collecting data
-        arm_controller.move_arm_to_pose("base")
-        self.replace_current_arm_pose("base")
+
+        if action["name"] == "scan":
+            self.get_logger().info("Moving arm to scan position.")
+            exit_code = arm_controller.move_arm_to_pose("scan")
+            if exit_code != ArmExitCode.SUCCEEDED:
+                raise RuntimeError(f"Arm failed to reach scan pose: {exit_code.name}")
+            self.replace_current_arm_pose("scan")
+
+            self.execute_wait(action)
+
+            exit_code = arm_controller.move_arm_to_pose("base")
+            if exit_code != ArmExitCode.SUCCEEDED:
+                raise RuntimeError(f"Arm failed to return to base: {exit_code.name}")
+            self.replace_current_arm_pose("base")
+
+        elif action["name"] == "spray":
+            self.get_logger().info("Executing spray sequence.")
+            exit_code = arm_controller.execute_spray_sequence()
+            if exit_code != ArmExitCode.SUCCEEDED:
+                raise RuntimeError(f"Spray sequence failed: {exit_code.name}")
+            self.replace_current_arm_pose("base")
+
+        else:
+            self.get_logger().warn(f"Skipping unknown arm action: {action['name']}")
 
     def get_arm_controller(self) -> ArmController:
         if self.arm_controller is None:
+            config_file = self.get_parameter("arm_poses_file").value or None
             self.get_logger().info("Initializing arm controller")
-            self.arm_controller = ArmController()
+            self.arm_controller = ArmController(config_file=config_file)
         return self.arm_controller
 
     def replace_current_arm_pose(self, arm_pose):

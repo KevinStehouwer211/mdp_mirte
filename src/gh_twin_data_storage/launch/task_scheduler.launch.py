@@ -93,6 +93,11 @@ def generate_launch_description():
                 "typedb_address": typedb_address,
                 "database_name": database_name,
                 "robot_heartbeat_topic": "/robot_heartbeat",
+                "arm_poses_file": PathJoinSubstitution([
+                    FindPackageShare("gh_twin_data_storage"),
+                    "config",
+                    "arm_poses.yml",
+                ]),
             }
         ],
     )
