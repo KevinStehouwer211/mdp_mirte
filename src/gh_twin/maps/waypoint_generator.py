@@ -142,9 +142,10 @@ for contour in contours:
             
             
             for point in waypoint_bin:
-                wp_id = f'id: "wp_{waypoint_id+2*N_waypoints*box_id}"'
+                wp_id = f"wp_{waypoint_id+2*N_waypoints*box_id}"
                 bin_str = f"bin_{box_id}"
                 wp_data = {
+                    'id': wp_id,
                     'bin_id': bin_str,
                     'x': float(point['x']),
                     'y': float(point['y']),
@@ -152,7 +153,7 @@ for contour in contours:
                     'pose_source': f"manual_slam"
                 }
                 #waypoint = {'bin_id': box_id, 'id': wp_id, 'x': float(point['x']), 'y': float(point['y']), 'yaw': 0.0, 'pose_source': "SLAM"}
-                waypoints_to_export.append((f'id: "wp_{waypoint_id}"', wp_data))
+                waypoints_to_export.append(wp_data)
                 cv2.circle(white_image, (int(point['x']), int(point['y'])), radius=2, color=0, thickness=-1)   
                 waypoint_id += 1
             
@@ -161,17 +162,9 @@ for contour in contours:
 file_path = "waypoints.yaml"
 
 with open(file_path, 'w') as yaml_file:
-    for header, data in waypoints_to_export:
-        # Write your parent identifier exactly how you need it
-        yaml_file.write(f"{header}\n")
-        
-        # Dump the internal attributes block
-        # Use default_flow_style=False for clean properties listing
-        inner_yaml = yaml.dump(data, default_flow_style=False, sort_keys=False)
-        
-        # Indent every single nested line by exactly 2 spaces
-        for line in inner_yaml.strip().split('\n'):
-            yaml_file.write(f"  {line}\n")
+    # Use standard default_flow_style=False to prevent inline structures
+    # Disable sort_keys to retain your exact insertion order
+    yaml.dump(waypoints_to_export, yaml_file, default_flow_style=False, sort_keys=False)
 
 
 #cv2.drawContours(image=white_image, contours=box_contours, contourIdx=-1, color=(0, 255, 0), thickness=4, lineType=cv2.LINE_AA)
