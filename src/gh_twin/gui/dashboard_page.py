@@ -249,14 +249,14 @@ class ROS2Interface(Node):
         )
 
     def heartbeat_callback(self, msg):
-        global robot_status, warning_msgs, alert_msgs, timeout_counter
+        global robot_status, warning_msgs, alert_msgs
         robot_status = 1 if msg.data else 0
         if robot_status == 0:
             alert_msgs.append("Robot is offline")
             warning_msgs.append("Robot connection lost")
         else:
             alert_msgs.append("Robot is online")
-            timeout_counter = self.get_time_now()
+            self.timeout_counter = self.get_time_now()
         
     
     # Function to convert ROS2 pose to normalized % coordinates and store in shared dict

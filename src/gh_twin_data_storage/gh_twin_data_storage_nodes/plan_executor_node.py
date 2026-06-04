@@ -320,15 +320,19 @@ class PlanExecutorNode(Node):
             ExitCode.GOAL_CANCELED,
         }
 
+        next_heartbeat_time = time.monotonic()
         while rclpy.ok():
             exit_code = navigator.nav_update_status()
             rclpy.spin_once(navigator, timeout_sec=0.1)
+            if time.monotonic() >= next_heartbeat_time:
+                self.publish_robot_heartbeat()
+                next_heartbeat_time = time.monotonic() + 1.0
             if self.abort_requested and not self.returning_to_recharge:
                 self.cancel_current_nav_goal()
             self.raise_if_aborted()
             if exit_code in terminal_codes:
                 break
-
+        
         if exit_code != ExitCode.GOAL_SUCCEEDED:
             raise RuntimeError(
                 f"Navigation to {waypoint_pddl_name} failed: {exit_code.name}"
