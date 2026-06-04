@@ -1,481 +1,480 @@
-waypoints:
-- bin_id: 0
-  w_id: 0
+id: "wp_0"
+  bin_id: bin_0
   x: 569.5
   y: 295.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 1
+  pose_source: manual_slam
+id: "wp_1"
+  bin_id: bin_0
   x: 569.5
   y: 277.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 2
+  pose_source: manual_slam
+id: "wp_2"
+  bin_id: bin_0
   x: 569.5
   y: 259.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 3
+  pose_source: manual_slam
+id: "wp_3"
+  bin_id: bin_0
   x: 569.5
   y: 241.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 4
+  pose_source: manual_slam
+id: "wp_4"
+  bin_id: bin_0
   x: 569.5
   y: 224.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 5
+  pose_source: manual_slam
+id: "wp_5"
+  bin_id: bin_0
   x: 624.5
   y: 295.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 6
+  pose_source: manual_slam
+id: "wp_6"
+  bin_id: bin_0
   x: 624.5
   y: 277.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 7
+  pose_source: manual_slam
+id: "wp_7"
+  bin_id: bin_0
   x: 624.5
   y: 259.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 8
+  pose_source: manual_slam
+id: "wp_8"
+  bin_id: bin_0
   x: 624.5
   y: 241.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 0
-  w_id: 9
+  pose_source: manual_slam
+id: "wp_9"
+  bin_id: bin_0
   x: 624.5
   y: 224.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 10
+  pose_source: manual_slam
+id: "wp_0"
+  bin_id: bin_1
   x: 458.5
   y: 295.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 11
+  pose_source: manual_slam
+id: "wp_1"
+  bin_id: bin_1
   x: 458.5
   y: 277.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 12
+  pose_source: manual_slam
+id: "wp_2"
+  bin_id: bin_1
   x: 458.5
   y: 259.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 13
+  pose_source: manual_slam
+id: "wp_3"
+  bin_id: bin_1
   x: 458.5
   y: 241.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 14
+  pose_source: manual_slam
+id: "wp_4"
+  bin_id: bin_1
   x: 458.5
   y: 224.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 15
+  pose_source: manual_slam
+id: "wp_5"
+  bin_id: bin_1
   x: 510.5
   y: 295.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 16
+  pose_source: manual_slam
+id: "wp_6"
+  bin_id: bin_1
   x: 510.5
   y: 277.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 17
+  pose_source: manual_slam
+id: "wp_7"
+  bin_id: bin_1
   x: 510.5
   y: 259.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 18
+  pose_source: manual_slam
+id: "wp_8"
+  bin_id: bin_1
   x: 510.5
   y: 241.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 1
-  w_id: 19
+  pose_source: manual_slam
+id: "wp_9"
+  bin_id: bin_1
   x: 510.5
   y: 224.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 20
+  pose_source: manual_slam
+id: "wp_0"
+  bin_id: bin_2
   x: 233.5
   y: 295.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 21
+  pose_source: manual_slam
+id: "wp_1"
+  bin_id: bin_2
   x: 233.5
   y: 277.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 22
+  pose_source: manual_slam
+id: "wp_2"
+  bin_id: bin_2
   x: 233.5
   y: 259.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 23
+  pose_source: manual_slam
+id: "wp_3"
+  bin_id: bin_2
   x: 233.5
   y: 241.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 24
+  pose_source: manual_slam
+id: "wp_4"
+  bin_id: bin_2
   x: 233.5
   y: 224.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 25
+  pose_source: manual_slam
+id: "wp_5"
+  bin_id: bin_2
   x: 285.5
   y: 295.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 26
+  pose_source: manual_slam
+id: "wp_6"
+  bin_id: bin_2
   x: 285.5
   y: 277.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 27
+  pose_source: manual_slam
+id: "wp_7"
+  bin_id: bin_2
   x: 285.5
   y: 259.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 28
+  pose_source: manual_slam
+id: "wp_8"
+  bin_id: bin_2
   x: 285.5
   y: 241.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 2
-  w_id: 29
+  pose_source: manual_slam
+id: "wp_9"
+  bin_id: bin_2
   x: 285.5
   y: 224.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 30
+  pose_source: manual_slam
+id: "wp_0"
+  bin_id: bin_3
   x: 119.5
   y: 295.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 31
+  pose_source: manual_slam
+id: "wp_1"
+  bin_id: bin_3
   x: 119.5
   y: 277.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 32
+  pose_source: manual_slam
+id: "wp_2"
+  bin_id: bin_3
   x: 119.5
   y: 259.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 33
+  pose_source: manual_slam
+id: "wp_3"
+  bin_id: bin_3
   x: 119.5
   y: 241.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 34
+  pose_source: manual_slam
+id: "wp_4"
+  bin_id: bin_3
   x: 119.5
   y: 224.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 35
+  pose_source: manual_slam
+id: "wp_5"
+  bin_id: bin_3
   x: 174.5
   y: 295.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 36
+  pose_source: manual_slam
+id: "wp_6"
+  bin_id: bin_3
   x: 174.5
   y: 277.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 37
+  pose_source: manual_slam
+id: "wp_7"
+  bin_id: bin_3
   x: 174.5
   y: 259.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 38
+  pose_source: manual_slam
+id: "wp_8"
+  bin_id: bin_3
   x: 174.5
   y: 241.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 3
-  w_id: 39
+  pose_source: manual_slam
+id: "wp_9"
+  bin_id: bin_3
   x: 174.5
   y: 224.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 40
+  pose_source: manual_slam
+id: "wp_0"
+  bin_id: bin_4
   x: 569.5
   y: 145.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 41
+  pose_source: manual_slam
+id: "wp_1"
+  bin_id: bin_4
   x: 569.5
   y: 127.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 42
+  pose_source: manual_slam
+id: "wp_2"
+  bin_id: bin_4
   x: 569.5
   y: 109.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 43
+  pose_source: manual_slam
+id: "wp_3"
+  bin_id: bin_4
   x: 569.5
   y: 91.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 44
+  pose_source: manual_slam
+id: "wp_4"
+  bin_id: bin_4
   x: 569.5
   y: 74.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 45
+  pose_source: manual_slam
+id: "wp_5"
+  bin_id: bin_4
   x: 624.5
   y: 145.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 46
+  pose_source: manual_slam
+id: "wp_6"
+  bin_id: bin_4
   x: 624.5
   y: 127.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 47
+  pose_source: manual_slam
+id: "wp_7"
+  bin_id: bin_4
   x: 624.5
   y: 109.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 48
+  pose_source: manual_slam
+id: "wp_8"
+  bin_id: bin_4
   x: 624.5
   y: 91.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 4
-  w_id: 49
+  pose_source: manual_slam
+id: "wp_9"
+  bin_id: bin_4
   x: 624.5
   y: 74.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 50
+  pose_source: manual_slam
+id: "wp_0"
+  bin_id: bin_5
   x: 458.5
   y: 145.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 51
+  pose_source: manual_slam
+id: "wp_1"
+  bin_id: bin_5
   x: 458.5
   y: 127.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 52
+  pose_source: manual_slam
+id: "wp_2"
+  bin_id: bin_5
   x: 458.5
   y: 109.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 53
+  pose_source: manual_slam
+id: "wp_3"
+  bin_id: bin_5
   x: 458.5
   y: 91.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 54
+  pose_source: manual_slam
+id: "wp_4"
+  bin_id: bin_5
   x: 458.5
   y: 74.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 55
+  pose_source: manual_slam
+id: "wp_5"
+  bin_id: bin_5
   x: 510.5
   y: 145.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 56
+  pose_source: manual_slam
+id: "wp_6"
+  bin_id: bin_5
   x: 510.5
   y: 127.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 57
+  pose_source: manual_slam
+id: "wp_7"
+  bin_id: bin_5
   x: 510.5
   y: 109.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 58
+  pose_source: manual_slam
+id: "wp_8"
+  bin_id: bin_5
   x: 510.5
   y: 91.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 5
-  w_id: 59
+  pose_source: manual_slam
+id: "wp_9"
+  bin_id: bin_5
   x: 510.5
   y: 74.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 60
+  pose_source: manual_slam
+id: "wp_0"
+  bin_id: bin_6
   x: 233.5
   y: 145.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 61
+  pose_source: manual_slam
+id: "wp_1"
+  bin_id: bin_6
   x: 233.5
   y: 127.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 62
+  pose_source: manual_slam
+id: "wp_2"
+  bin_id: bin_6
   x: 233.5
   y: 109.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 63
+  pose_source: manual_slam
+id: "wp_3"
+  bin_id: bin_6
   x: 233.5
   y: 91.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 64
+  pose_source: manual_slam
+id: "wp_4"
+  bin_id: bin_6
   x: 233.5
   y: 74.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 65
+  pose_source: manual_slam
+id: "wp_5"
+  bin_id: bin_6
   x: 285.5
   y: 145.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 66
+  pose_source: manual_slam
+id: "wp_6"
+  bin_id: bin_6
   x: 285.5
   y: 127.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 67
+  pose_source: manual_slam
+id: "wp_7"
+  bin_id: bin_6
   x: 285.5
   y: 109.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 68
+  pose_source: manual_slam
+id: "wp_8"
+  bin_id: bin_6
   x: 285.5
   y: 91.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 6
-  w_id: 69
+  pose_source: manual_slam
+id: "wp_9"
+  bin_id: bin_6
   x: 285.5
   y: 74.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 70
+  pose_source: manual_slam
+id: "wp_0"
+  bin_id: bin_7
   x: 119.5
   y: 145.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 71
+  pose_source: manual_slam
+id: "wp_1"
+  bin_id: bin_7
   x: 119.5
   y: 127.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 72
+  pose_source: manual_slam
+id: "wp_2"
+  bin_id: bin_7
   x: 119.5
   y: 109.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 73
+  pose_source: manual_slam
+id: "wp_3"
+  bin_id: bin_7
   x: 119.5
   y: 91.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 74
+  pose_source: manual_slam
+id: "wp_4"
+  bin_id: bin_7
   x: 119.5
   y: 74.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 75
+  pose_source: manual_slam
+id: "wp_5"
+  bin_id: bin_7
   x: 174.5
   y: 145.0
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 76
+  pose_source: manual_slam
+id: "wp_6"
+  bin_id: bin_7
   x: 174.5
   y: 127.25
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 77
+  pose_source: manual_slam
+id: "wp_7"
+  bin_id: bin_7
   x: 174.5
   y: 109.5
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 78
+  pose_source: manual_slam
+id: "wp_8"
+  bin_id: bin_7
   x: 174.5
   y: 91.75
   yaw: 0.0
-  pose_source: SLAM
-- bin_id: 7
-  w_id: 79
+  pose_source: manual_slam
+id: "wp_9"
+  bin_id: bin_7
   x: 174.5
   y: 74.0
   yaw: 0.0
-  pose_source: SLAM
+  pose_source: manual_slam
