@@ -1,0 +1,6 @@
+1. If the robot position coincides with the inflated costmap then the regulated pure persuit controller predicts collision for all future times as well and stops the robot
+2. Observation_persistence and clearing in inflation
+3. Replanning is not happening often enough
+4. Planner server
+Important parameters:
+1. inflation radius and cost scaling factor, controller lookahead time, BaseObstacle.scale: 0.5, obstacle max range - global cost map. PathAlignscale, progress_checker, bt_loop_duration

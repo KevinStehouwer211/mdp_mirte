@@ -6,7 +6,7 @@ version = "0.1.1"
 
 [tasks]
 fetch = {cmd = "vcs import --input repos.repos src", description = "Fetch MIRTE packages"}
-build = {cmd = "colcon build", description = "Build the ROS workspace"}
+build = {cmd = "colcon build --symlink-install", description = "Build the ROS workspace"}
 ws-clean = {cmd = "rm -rf build install log", description = "Clean build artifacts (build, install, log directories)"}
 clean-build = [{ task = "ws-clean" }, { task = "build" }]
 
@@ -89,6 +89,7 @@ ros-humble-slam-toolbox = "*"
 ros-humble-navigation2 = "*"
 ros-humble-nav2-bringup = "*"
 ros-humble-laser-filters = "*"
+ros-humble-topic-tools = "*"
 
 [activation]
 scripts = ["pixi_activation.sh"]
