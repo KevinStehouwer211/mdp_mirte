@@ -9,18 +9,9 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     slam_params_file = LaunchConfiguration('slam_params_file')
     use_sim_time = LaunchConfiguration('use_sim_time')
-    filter_file = LaunchConfiguration('filter_file')
-    
     
     rviz_config = PathJoinSubstitution(
             [FindPackageShare("gh_twin"), 'config', 'rviz_config.rviz']
-    )
-    
-    declare_laser_filter_file_cmd = DeclareLaunchArgument(
-        'filter_file',
-        default_value=PathJoinSubstitution(
-            [FindPackageShare("gh_twin"), 'config', 'laser_filter.yaml']
-        ),
     )
 
 
@@ -43,16 +34,6 @@ def generate_launch_description():
         parameters=[slam_params_file, {'use_sim_time': use_sim_time}],
     )
     
-    laser_filter_node = Node(
-        package='Laser_filters',
-        executable='scan_to_scan_filter_chain',
-        paramteres=[filter_file, {'use_sim_time': use_sim_time}],
-        remappings=[
-        ('scan','/scan')
-        ('scan_filteres\d','/scan_filtered')
-    ]
-    )
-    
     teleop_node = Node(
         package='teleop_twist_keyboard',
         executable='teleop_twist_keyboard',
@@ -73,4 +54,4 @@ def generate_launch_description():
     
     
 
-    return LaunchDescription([use_sim_time_arg, slam_params_file_arg, slam_node, declare_laser_filter_file_cmd, laser_filter_node])
+    return LaunchDescription([use_sim_time_arg, teleop_node, rviz_node])
