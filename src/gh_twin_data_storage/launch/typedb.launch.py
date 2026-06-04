@@ -16,6 +16,7 @@ def generate_launch_description():
             'database_name': 'greenhouse',
             'map_id': 'greenhouse-map-001',
             'robot_id': 'robot1',
+            'reset_waypoints_on_start': True,
             "waypoints_file": PathJoinSubstitution([FindPackageShare('gh_twin_data_storage'), 'config', 'waypoints.yml']),
             }]
         )

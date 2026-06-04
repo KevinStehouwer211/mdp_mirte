@@ -20,6 +20,7 @@ class TypeDBStorageNode(Node):
         self.declare_parameter('robot_id', 'robot1')
         self.declare_parameter('current_wp_id', '')
         self.declare_parameter('waypoints_file', '')
+        self.declare_parameter('reset_waypoints_on_start', False)
 
         self.typedb_address = self.get_parameter("typedb_address").value
         self.database_name = self.get_parameter("database_name").value
@@ -28,6 +29,7 @@ class TypeDBStorageNode(Node):
         self.map_id = self.get_parameter("map_id").value
         self.robot_id = self.get_parameter("robot_id").value
         self.waypoints_file = self.get_parameter("waypoints_file").value
+        self.reset_waypoints_on_start = self.get_parameter("reset_waypoints_on_start").value
         self.plants = []
         self.pests = []
         self.sensors = []
@@ -81,6 +83,66 @@ class TypeDBStorageNode(Node):
                 transaction.commit()
                 return results
 
+    def _delete_query(self, query):
+        if self.driver is None:
+            raise RuntimeError("Call connect_to_typedb() first.")
+
+        with self.driver.session(self.database_name, SessionType.DATA) as session:
+            with session.transaction(TransactionType.WRITE) as transaction:
+                result = transaction.query.delete(query)
+                if result is not None:
+                    result.resolve()
+                transaction.commit()
+
+    def _delete_waypoint_relations(self, waypoint_match):
+        relation_queries = [
+            f'''
+            match
+              {waypoint_match}
+              $rel (location: $wp) isa current-location;
+            delete $rel isa current-location;
+            ''',
+            f'''
+            match
+              {waypoint_match}
+              $rel (waypoint: $wp) isa map-waypoint;
+            delete $rel isa map-waypoint;
+            ''',
+            f'''
+            match
+              {waypoint_match}
+              $rel (from: $wp) isa path-connection;
+            delete $rel isa path-connection;
+            ''',
+            f'''
+            match
+              {waypoint_match}
+              $rel (to: $wp) isa path-connection;
+            delete $rel isa path-connection;
+            ''',
+            f'''
+            match
+              {waypoint_match}
+              $rel (observer: $wp) isa observation-location;
+            delete $rel isa observation-location;
+            ''',
+            f'''
+            match
+              {waypoint_match}
+              $rel (at-waypoint: $wp) isa object-location;
+            delete $rel isa object-location;
+            ''',
+            f'''
+            match
+              {waypoint_match}
+              $rel (location: $wp) isa waypoint-scan;
+            delete $rel isa waypoint-scan;
+            ''',
+        ]
+
+        for query in relation_queries:
+            self._delete_query(query)
+
     def close(self):
         if self.driver:
             self.driver.close()
@@ -122,9 +184,10 @@ class TypeDBStorageNode(Node):
         delete_query = f'''
         match
           $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
-        delete $wp;
+        delete $wp isa waypoint;
         '''
-        self._write_query(delete_query)
+        self._delete_waypoint_relations(f'$wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";')
+        self._delete_query(delete_query)
         self.get_logger().info(f"Removed waypoint '{waypoint_id}' from TypeDB")
 
     def remove_all_waypoints(self):
@@ -132,9 +195,10 @@ class TypeDBStorageNode(Node):
         delete_query = '''
         match
           $wp isa waypoint;
-        delete $wp;
+        delete $wp isa waypoint;
         '''
-        self._write_query(delete_query)
+        self._delete_waypoint_relations('$wp isa waypoint;')
+        self._delete_query(delete_query)
         self.get_logger().info("Removed all waypoints from TypeDB")
 
     def load_waypoints_from_yml(self):
@@ -143,12 +207,13 @@ class TypeDBStorageNode(Node):
             return
         
         with open(self.waypoints_file, 'r') as file:
-            waypoints = yaml.safe_load(file)
+            waypoints = yaml.safe_load(file) or []
             for wp in waypoints:
+                waypoint_id = str(wp['id'])
                 query = f'''
                 insert
                   $wp isa waypoint,
-                    has id "{self._typeql_string(wp['id'])}",
+                    has id "{self._typeql_string(waypoint_id)}",
                     has bin-id "{self._typeql_string(wp['bin_id'])}",
                     has x {float(wp['x'])},
                     has y {float(wp['y'])},
@@ -157,6 +222,30 @@ class TypeDBStorageNode(Node):
                 '''
                 self._write_query(query)
 
+            waypoint_ids = [str(wp['id']) for wp in waypoints]
+
+            for from_id, to_id in zip(waypoint_ids, waypoint_ids[1:]):
+                query = f'''
+                match
+                  $from isa waypoint, has id "{self._typeql_string(from_id)}";
+                  $to isa waypoint, has id "{self._typeql_string(to_id)}";
+                insert
+                  $edge (from: $from, to: $to) isa path-connection,
+                    has id "wp-{self._typeql_string(from_id)}-wp-{self._typeql_string(to_id)}";
+                  $edge_reverse (from: $to, to: $from) isa path-connection,
+                    has id "wp-{self._typeql_string(to_id)}-wp-{self._typeql_string(from_id)}";
+                '''
+                self._write_query(query)
+
+            query = f'''
+            match
+                $robot isa robot, has id "robot1";
+                $wp isa waypoint, has id "wp_start";
+                insert
+                (located: $robot, location: $wp) isa current-location;
+            '''
+            self._write_query(query)
+        
     def _find_nearest_waypoint(self, location):
         waypoints = self._query_waypoints()
         if not waypoints:
@@ -376,6 +465,8 @@ def main(args=None):
     rclpy.init(args=args)
     node = TypeDBStorageNode()
     node.connect_to_typedb()
+    if node.reset_waypoints_on_start:
+        node.remove_all_waypoints()
     node.load_waypoints_from_yml()
 
     try:
