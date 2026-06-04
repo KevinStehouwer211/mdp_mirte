@@ -160,6 +160,7 @@ bridge = CvBridge()
 
 # Whether robot is connected or not
 robot_status = 0
+prev_robot_status = 0
 
 #########################################################################################
 
@@ -245,11 +246,15 @@ class ROS2Interface(Node):
         global robot_status, warning_msgs, alert_msgs, timeout_counter
         robot_status = 1 if msg.data else 0
         if robot_status == 0:
-            alert_msgs.append("Robot is offline")
-            warning_msgs.append("Robot connection lost")
+            if prev_robot_status == 1:
+                alert_msgs.append("Robot is offline")
+                warning_msgs.append("Robot connection lost")
+                prev_robot_status = 0
         else:
-            alert_msgs.append("Robot is online")
-            self.timeout_counter = self.get_time_now()
+            if prev_robot_status == 0:
+                alert_msgs.append("Robot is online")
+                prev_robot_status = 1
+                self.timeout_counter = self.get_time_now()
         
     
     # Function to convert ROS2 pose to normalized % coordinates and store in shared dict
