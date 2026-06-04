@@ -240,7 +240,7 @@ class TypeDBStorageNode(Node):
             query = f'''
             match
                 $robot isa robot, has id "robot1";
-                $wp isa waypoint, has id "wp_start";
+                $wp isa waypoint, has id "wp_0";
                 insert
                 (located: $robot, location: $wp) isa current-location;
             '''
