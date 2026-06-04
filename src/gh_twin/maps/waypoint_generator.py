@@ -147,8 +147,8 @@ for contour in contours:
                 wp_data = {
                     'id': wp_id,
                     'bin_id': bin_str,
-                    'x': float(point['x']),
-                    'y': float(point['y']),
+                    'x': round(float(point['x']/1000.0),3),
+                    'y': round(float(point['y']/1000.0),3),
                     'yaw': 0.0,
                     'pose_source': f"manual_slam"
                 }
