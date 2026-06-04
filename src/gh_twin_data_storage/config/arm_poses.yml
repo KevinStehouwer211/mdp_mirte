@@ -14,27 +14,27 @@ motion_duration_sec: 3.0
 poses:
   home:
     positions: [0.0, 0.0, 0.0, 0.0]
-    duration_sec: 2
+    duration_sec: 1.5
 
   base:
-    positions: [0.0, 0.0, 0.0, 0.0]
-    duration_sec: 2
+    positions: [0.0, 65.0, -100.0, 70.0]
+    duration_sec: 1.5
 
   scan:
-    positions: [0.0, -1.0, 0.5, 0.0]
-    duration_sec: 3
+    positions: [-90.0, 65.0, -100.0, 70.0]
+    duration_sec: 1.5
 
   spray:
-    positions: [0.0, -0.8, 1.2, 0.0]
-    duration_sec: 3
+    positions: [0.0, 0.0, 0.0, 0.0]
+    duration_sec: 1.5
 
   # Spray sequence waypoints — tune positions for the physical robot
   sequ_home:
-    positions: [0.0, 0.0, 0.0, 0.0]
-    duration_sec: 2
+    positions: [-90.0, 65.0, -100.0, -70.0]
+    duration_sec: 1.5
   sequ_p1:
-    positions: [0.0, -45.0, 45.0, 0.0]
-    duration_sec: 2
-  sequ_p2:
-    positions: [0.0, -60.0, 60.0, 0.0]
-    duration_sec: 2
+    positions: [-90.0, -5.0, -65.0, -25.0]
+    duration_sec: 1.5
+  sequ_p2:  
+    positions: [-90.0, -10.0, -115.0, 35.0]
+    duration_sec: 1.5

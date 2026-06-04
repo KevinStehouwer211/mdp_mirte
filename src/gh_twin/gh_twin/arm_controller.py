@@ -59,11 +59,17 @@ class ArmController(Node):
             self.get_logger().error(f"Arm config not found: {config_file}")
             return
 
+        self.get_logger().info(f"Loading arm config from '{config_file}'")
+
         with open(path, "r") as f:
             config = yaml.safe_load(f)
 
         self._joint_names = config.get("joint_names", [])
         self._motion_duration_sec = float(config.get("motion_duration_sec", 3.0))
+
+        self.get_logger().info(
+            f"Loaded arm config: {len(self._joint_names)} joints, default motion duration {self._motion_duration_sec:.1f} sec"
+        )
 
         for pose_name, pose_data in config.get("poses", {}).items():
             self._poses[pose_name] = pose_data
@@ -119,11 +125,13 @@ class ArmController(Node):
 
     def _build_goal(self, pose_name: str) -> FollowJointTrajectory.Goal:
         pose_data = self._poses[pose_name]
-        duration_sec = int(pose_data.get("duration_sec", self._motion_duration_sec))
+        duration_float = float(pose_data.get("duration_sec", self._motion_duration_sec))
+        duration_sec = int(duration_float)
+        duration_nsec = int((duration_float - duration_sec) * 1e9)
 
         point = JointTrajectoryPoint()
         point.positions = [math.radians(float(p)) for p in pose_data["positions"]]
-        point.time_from_start = Duration(sec=duration_sec, nanosec=0)
+        point.time_from_start = Duration(sec=duration_sec, nanosec=duration_nsec)
 
         trajectory = JointTrajectory()
         trajectory.joint_names = self._joint_names

@@ -16,7 +16,7 @@ from typedb.driver import SessionType, TransactionType
 
 from gh_twin.nav_to_pose import ExitCode, NavToPose
 from gh_twin_data_storage_nodes.pddl_planner_node import PddlPlannerNode
-from gh_twin_data_storage_nodes.arm_controller import ArmController, ArmExitCode
+from gh_twin.arm_controller import ArmController, ArmExitCode
 
 class PlanAborted(Exception):
     pass
