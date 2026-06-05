@@ -44,12 +44,12 @@ def generate_launch_description():
     )
     
     laser_filter_node = Node(
-        package='Laser_filters',
+        package='laser_filters',
         executable='scan_to_scan_filter_chain',
-        paramteres=[filter_file, {'use_sim_time': use_sim_time}],
+        parameters=[filter_file, {'use_sim_time': use_sim_time}],
         remappings=[
-        ('scan','/scan')
-        ('scan_filteres\d','/scan_filtered')
+        ('scan','/scan'),
+        ('scan_filtered','/scan_filtered')
     ]
     )
     
@@ -73,4 +73,4 @@ def generate_launch_description():
     
     
 
-    return LaunchDescription([use_sim_time_arg, slam_params_file_arg, slam_node, declare_laser_filter_file_cmd, laser_filter_node])
+    return LaunchDescription([use_sim_time_arg, slam_params_file_arg, slam_node, declare_laser_filter_file_cmd, laser_filter_node, use_sim_time_arg, teleop_node, rviz_node])

@@ -7,12 +7,13 @@ box_area = 1.0*0.3
 box_area_ub = 1.5*box_area
 box_area_lb = 0.5*box_area
 
-image_scale = 3.0
+image_scale = 5
 
 position_tolerance = 0.5
 deadband = 0.2
 waypoint_offset = 0.5
 N_waypoints = 5 # Number of waypoints along the longer edge of the box
+
 
 def get_longer_edge_offsets(p1, p2, p3, p4):
     
@@ -78,6 +79,11 @@ def get_longer_edge_offsets(p1, p2, p3, p4):
     return waypoint_list
 
 
+def coordinate_transform(x, y, map_origin):
+    return [x - map_origin[0], -y + map_origin[1]]
+
+def transform_to_real(x,y):
+    pass
 
 # 1. Parse YAML Metadata
 with open('map.yaml', 'r') as f:
@@ -85,11 +91,14 @@ with open('map.yaml', 'r') as f:
 
 resolution = metadata['resolution']
 origin_x, origin_y, _ = metadata['origin']
+
 #print(resolution, origin_x, origin_y)
 
 # Read map image
 image = cv2.imread('map.pgm', cv2.IMREAD_UNCHANGED)
 image_height, image_width = image.shape
+map_origin = [int(-(origin_x/resolution)), int((image_height + origin_y/resolution))]
+
 scaled_image = cv2.resize(image, None, fx=image_scale, fy=image_scale, interpolation=cv2.INTER_CUBIC)
 white_image = np.full((int(image_height*image_scale), int(image_width*image_scale)), 255, dtype=np.uint8)
 
@@ -127,8 +136,9 @@ for contour in contours:
             
         if not contour_check:
             box_contours.append(contour)
-            box_points = cv2.boxPoints(rect)*image_scale
-            cv2.drawContours(white_image, [box_points.astype(int)], 0, 0, thickness=2)
+            box_points = cv2.boxPoints(rect)
+            cv2.drawContours(white_image, [box_points.astype(int)*image_scale], 0, 0, thickness=2)
+            cv2.putText(white_image, f"bin_{box_id}", (int(cx*image_scale) - 20, int(cy*image_scale) + 5),  cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 0), 1)
             
             
             contour_check = False
@@ -142,19 +152,20 @@ for contour in contours:
             
             
             for point in waypoint_bin:
+                x_map, y_map = coordinate_transform(point['x'], point['y'], map_origin)
                 wp_id = f"wp_{waypoint_id+2*N_waypoints*box_id}"
                 bin_str = f"bin_{box_id}"
                 wp_data = {
                     'id': wp_id,
                     'bin_id': bin_str,
-                    'x': round(float(point['x']/1000.0),3),
-                    'y': round(float(point['y']/1000.0),3),
+                    'x': round(float(x_map*resolution),3),
+                    'y': round(float(y_map*resolution),3),
                     'yaw': 0.0,
                     'pose_source': f"manual_slam"
                 }
                 #waypoint = {'bin_id': box_id, 'id': wp_id, 'x': float(point['x']), 'y': float(point['y']), 'yaw': 0.0, 'pose_source': "SLAM"}
                 waypoints_to_export.append(wp_data)
-                cv2.circle(white_image, (int(point['x']), int(point['y'])), radius=2, color=0, thickness=-1)   
+                cv2.circle(white_image, (int(point['x']*image_scale), int(point['y']*image_scale)), radius=2, color=0, thickness=-1)   
                 waypoint_id += 1
             
             box_id += 1         
@@ -166,17 +177,26 @@ with open(file_path, 'w') as yaml_file:
     # Disable sort_keys to retain your exact insertion order
     yaml.dump(waypoints_to_export, yaml_file, default_flow_style=False, sort_keys=False)
 
+cv2.circle(white_image, (int(map_origin[0]*image_scale), int(map_origin[1]*image_scale)), radius=10, color=0, thickness=-1)
+cv2.circle(white_image, (0, 0), radius=10, color=0, thickness=-1)
 
+#cropped_roi = white_image[211*image_scale:190*image_scale, 309*image_scale:456*image_scale]
+#cropped_roi = white_image[190*image_scale:456*image_scale, 211*image_scale:309*image_scale]
+
+#cv2.rectangle(white_image, (211*image_scale, 190*image_scale), (309*image_scale, 456*image_scale), color=0, thickness=1 )
+
+print(map_origin)
 #cv2.drawContours(image=white_image, contours=box_contours, contourIdx=-1, color=(0, 255, 0), thickness=4, lineType=cv2.LINE_AA)
 #print(bins)
 print(waypoints)
 # see the results
 cv2.imshow('Extracted contours', white_image)
 
+
 # Verify the shape and data type
 #print("Image dimensions:", image.shape)
 #print("Data type:", image.dtype)
 
-cv2.imshow("Map Image", scaled_image)
+#cv2.imshow("Map Image", scaled_image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
