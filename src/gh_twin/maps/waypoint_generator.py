@@ -7,12 +7,15 @@ box_area = 1.0*0.3
 box_area_ub = 1.5*box_area
 box_area_lb = 0.5*box_area
 
-image_scale = 5
+image_scale = 2
 
 position_tolerance = 0.5
 deadband = 0.2
-waypoint_offset = 0.5
+waypoint_offset = 0.25
 N_waypoints = 5 # Number of waypoints along the longer edge of the box
+
+map_file = "map_gh_simplified.pgm"
+map_yaml = "map_gh_simplified.yaml"
 
 
 def get_longer_edge_offsets(p1, p2, p3, p4):
@@ -86,7 +89,7 @@ def transform_to_real(x,y):
     pass
 
 # 1. Parse YAML Metadata
-with open('map.yaml', 'r') as f:
+with open(map_yaml, 'r') as f:
     metadata = yaml.safe_load(f)
 
 resolution = metadata['resolution']
@@ -95,7 +98,7 @@ origin_x, origin_y, _ = metadata['origin']
 #print(resolution, origin_x, origin_y)
 
 # Read map image
-image = cv2.imread('map.pgm', cv2.IMREAD_UNCHANGED)
+image = cv2.imread(map_file, cv2.IMREAD_UNCHANGED)
 image_height, image_width = image.shape
 map_origin = [int(-(origin_x/resolution)), int((image_height + origin_y/resolution))]
 
@@ -114,7 +117,7 @@ waypoints_to_export = []
 bins = []
 waypoints = []
 
-
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 for contour in contours:
     contour_check = False
@@ -170,7 +173,7 @@ for contour in contours:
             
             box_id += 1         
 
-file_path = "waypoints.yaml"
+file_path = "waypoints_hardware.yaml"
 
 with open(file_path, 'w') as yaml_file:
     # Use standard default_flow_style=False to prevent inline structures
@@ -180,17 +183,27 @@ with open(file_path, 'w') as yaml_file:
 cv2.circle(white_image, (int(map_origin[0]*image_scale), int(map_origin[1]*image_scale)), radius=10, color=0, thickness=-1)
 cv2.circle(white_image, (0, 0), radius=10, color=0, thickness=-1)
 
-#cropped_roi = white_image[211*image_scale:190*image_scale, 309*image_scale:456*image_scale]
-#cropped_roi = white_image[190*image_scale:456*image_scale, 211*image_scale:309*image_scale]
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+cropped_roi = white_image[190*image_scale:456*image_scale, 211*image_scale:309*image_scale]
+
+cropped_roi = cv2.rotate(cropped_roi, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+# kernel = np.array([[ 0, -1,  0],
+#                    [-1,  5, -1],
+#                    [ 0, -1,  0]])
+
+# # Apply the kernel to the image (-1 keeps the original depth/type)
+# sharpened_image = cv2.filter2D(cropped_roi, -1, kernel)
 
 #cv2.rectangle(white_image, (211*image_scale, 190*image_scale), (309*image_scale, 456*image_scale), color=0, thickness=1 )
 
-print(map_origin)
 #cv2.drawContours(image=white_image, contours=box_contours, contourIdx=-1, color=(0, 255, 0), thickness=4, lineType=cv2.LINE_AA)
-#print(bins)
-print(waypoints)
+
 # see the results
-cv2.imshow('Extracted contours', white_image)
+cv2.imshow('Extracted contours', cropped_roi)
+cv2.imshow('Actual Map', white_image)
 
 
 # Verify the shape and data type
