@@ -262,15 +262,16 @@ def load_styles():
         justify-content: center;
         align-items: center;
     }
-
+    /*Scale - 2 width: 266*2*2.7, height: 98*2*2.7*/
     .map-panel {
         position: absolute;
         width: 76vw;
-        height: 60vh;
-        background: rgba(255,255,255,0.5);
+        height: 43vh;
+        /*background: rgba(255,255,255,0.5);*/
+        background: transparent !important;
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
-        top: 2vh;
+        top: 20vh;
         left: 22vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
@@ -281,11 +282,12 @@ def load_styles():
         left: 0px;
         top: 0px;
         width: 76vw;
-        height: 60vh;
+        height: 43vh;
         border: 3px solid black;
         box-sizing: border-box;
+        background: transparent !important;
     }
-
+    /*
     .home-station {
         position: absolute;
         right: 60px;
@@ -308,19 +310,20 @@ def load_styles():
         background: #92745B;
         /*border-radius: 14px;*/
         border: 3px dotted black;
-    }
+    }*/
 
     .entity {
         position: absolute;
         border-radius: 50%;
         cursor: pointer;
+        background: transparent;
         transition: transform 0.2s ease;
     }
     .entity:hover { transform: scale(1.15); }
 
-    .plant-dot  { width: 14px; height: 14px; background: #39ff14; }
-    .bug-dot    { width: 14px; height: 14px; background: #ff3b3b; }
-    .sensor-dot { width: 14px; height: 14px; background: #ffd43b; }
+    /*.plant-dot  { width: 14px; height: 14px; background: #39ff14; }*/
+    /*.bug-dot    { width: 14px; height: 14px; background: #ff3b3b; }*/
+    /*.sensor-dot { width: 14px; height: 14px; background: #ffd43b; }*/
 
     /* Robot uses CSS custom properties so JS can update
        position without replacing the whole element */
@@ -358,8 +361,8 @@ def load_styles():
         left: 50%;
         transform: translateY(-20%);
         min-width: 180px;
-        background: rgba(255,255,255,0.7);
-        backdrop-filter: blur(10px);
+        background: rgba(18, 18, 18, 0.85) !important;
+        /*backdrop-filter: blur(10px);*/
         border-radius: 16px;
         padding: 12px;
         display: none;
@@ -367,6 +370,7 @@ def load_styles():
         box-shadow: 0 8px 24px rgba(0,0,0,0.15);
         /* prevent tooltip from closing while hovering it */
         pointer-events: auto;
+        overflow: visible !important;
     }
     .entity:hover .tooltip-js { display: block; }
 
@@ -377,7 +381,7 @@ def load_styles():
         margin-top: 8px;
         border-radius: 10px;
         background: linear-gradient(135deg, #22c55e, #15803d);
-        color: white;
+        color: black;
         cursor: pointer;
     }
 

@@ -160,6 +160,7 @@ bridge = CvBridge()
 
 # Whether robot is connected or not
 robot_status = 0
+prev_robot_status = 0
 
 #########################################################################################
 
@@ -249,14 +250,18 @@ class ROS2Interface(Node):
         )
 
     def heartbeat_callback(self, msg):
-        global robot_status, warning_msgs, alert_msgs
+        global robot_status, warning_msgs, alert_msgs, timeout_counter
         robot_status = 1 if msg.data else 0
         if robot_status == 0:
-            alert_msgs.append("Robot is offline")
-            warning_msgs.append("Robot connection lost")
+            if prev_robot_status == 1:
+                alert_msgs.append("Robot is offline")
+                warning_msgs.append("Robot connection lost")
+                prev_robot_status = 0
         else:
-            alert_msgs.append("Robot is online")
-            self.timeout_counter = self.get_time_now()
+            if prev_robot_status == 0:
+                alert_msgs.append("Robot is online")
+                prev_robot_status = 1
+                self.timeout_counter = self.get_time_now()
         
     
     # Function to convert ROS2 pose to normalized % coordinates and store in shared dict
@@ -499,7 +504,7 @@ if not _ros_thread_started:
 
 @ui.page('/')
 def main_page():
-
+    
     # --------------------------------------------------------
     # LAYOUT
     # --------------------------------------------------------
@@ -625,27 +630,34 @@ def main_page():
                 ui.button(on_click=logout, icon='logout').props('outline round')
                 
         # Get any clicked point
-        greenhouse  = ui.element('div').classes('map-panel')  # for click testing
+        greenhouse  = ui.image('map_hmi_updated.png').classes('map-panel')
+            # for click testing
         greenhouse.on('click', lambda e: ros2_interface.go_to_pos(e.args["clientX"], e.args["clientY"]))
 
         with greenhouse:
 
             ui.element('div').classes('greenhouse-border')
 
-            ui.html('<div class="home-station">Home</div>')
+            #ui.html('<div class="home-station">Home</div>')
 
-            # ==========================================
-            # Plotting beds
-            # ==========================================
-            for bx, by in beds:
-                ui.html(
-                    f'<div class="plant-bed" '
-                    f'style="left:{bx}px; top:{by}px;"></div>'
-                )
 
-            # ==========================================
+            # for bx, by in beds:
+            #     ui.html(
+            #         f'<div class="plant-bed" '
+            #         f'style="left:{bx}px; top:{by}px;"></div>'
+            #     )
+            ui.add_css('''
+                @layer utilities {
+                    .entity{
+                        background: transparent !important;
+                        background-color: transparent !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                    }
+                }
+            ''')
+            
             # Plotting plants
-            # ==========================================
             for plant in plants:
                 status_text = 'Bloomed' if plant['bloomed'] else 'Not Bloomed'
                 pid = plant['id']
@@ -654,11 +666,20 @@ def main_page():
                 
                 # 1. Grab a reference to the container
                 with ui.element('div').style(
-                    f'position:absolute; left:{plant["x"]}px; top:{plant["y"]}px; z-index:10; overflow:visible;'
-                ).classes('entity') as entity_container:
-                    
+                    f'position:absolute;'
+                    f'left:{plant["x"]}px;'
+                    f'top:{plant["y"]}px;'
+                    f'z-index:10;'
+                    f'overflow:visible !important; '
+                ).classes('entity'):
+                     
                     ui.image(filename).style(
-                        'width:35px; height:35px; cursor:pointer; background: transparent; transition: transform 0.2s ease;'
+                        'width:20px;'
+                        'height:20px;'
+                        'cursor:pointer;'
+                        'background: transparent;'
+                        'transition: transform 0.2s ease;'
+                        'overflow:visible !important;'
                     ).classes(animation_class)
                     
                     # 2. Use tooltip-js and start hidden (display: none)
@@ -686,11 +707,20 @@ def main_page():
                 
                 # 1. Grab a reference to the container
                 with ui.element('div').style(
-                    f'position:absolute; left:{bug["x"]}px; top:{bug["y"]}px; z-index:10; overflow:visible;'
-                ).classes('entity') as entity_container:
+                    f'position:absolute;'
+                    f'left:{bug["x"]}px;'
+                    f'top:{bug["y"]}px;'
+                    f'z-index:10;'
+                    f'overflow:visible !important; '
+                ).classes('entity'):
 
                     ui.image('bug.png').style(
-                        'width:28px; height:28px; cursor:pointer; background: transparent; transition: transform 0.2s ease;'
+                        'width:20px;'
+                        'height:20px;'
+                        'cursor:pointer;'
+                        'background: transparent;'
+                        'transition: transform 0.2s ease;'
+                        'overflow:visible !important;'
                     )
 
                     # 2. Use tooltip-js and start hidden (display: none)
@@ -716,11 +746,20 @@ def main_page():
                 state = {'is_dropdown_open': False}
 
                 with ui.element('div').style(
-                    f'position:absolute; left:{sensor["x"]}px; top:{sensor["y"]}px; z-index:10; overflow:visible;'
-                ).classes('entity') as entity_container:
+                    f'position:absolute;'
+                    f'left:{sensor["x"]}px;'
+                    f'top:{sensor["y"]}px;'
+                    f'z-index:10;'
+                    f'overflow:visible !important;'
+                ).classes('entity'):
 
                     ui.image('sensor.png').style(
-                        'width:28px; height:28px; cursor:pointer; background: transparent; transition: transform 0.2s ease;'
+                        'width:20px;'
+                        'height:20px;'
+                        'cursor:pointer;'
+                        'background: transparent;'
+                        'transition: transform 0.2s ease;'
+                        'overflow:visible !important;'
                     )
 
                     # --- STEP 2: Bind visibility to NiceGUI's conditional styling instead of pure CSS ---
@@ -768,13 +807,7 @@ def main_page():
                             on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
                         ).classes('tooltip-btn').props('no-caps unelevated')
 
-                    # --- STEP 4: Wire up Python mouse hover triggers (FIXED WITH DEFAULT ARGS) ---
-                    entity_container.on('mouseenter', lambda e, tc=tooltip_card: tc.style('display: block'))
-                    entity_container.on('mouseleave', lambda e, tc=tooltip_card, st=state: \
-                        tc.style('display: none') if not st['is_dropdown_open'] else None)        
             
-
-
             # ------------------------------------------------
             # ROBOT MARKER
             # A single persistent <div> is injected once.
