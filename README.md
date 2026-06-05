@@ -154,6 +154,8 @@ NOTE: Everytime you make use of a function that uses TypeDB, you must be connect
 
 ## Running the planner
 
+The waypoints must be put in /gh_twin_data_storage/config/waypoint.yml
+
 With the "typedb server" open in one terminal, open a terminal to run the greenhouse simulation:
 
 ```shell
@@ -167,6 +169,16 @@ And a terminal to run the planner.
 source install/setup.bash
 ros2 launch gh_twin_data_storage task_scheduler.launch.py
 ```
+
+And the gui:
+
+```shell
+cd src/gh_twin/gui/
+python3 main.py
+```
+Then in the gui select "measurement mode", and the planner should start finsing a plan.
+
+
 
 
 
