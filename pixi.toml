@@ -90,6 +90,7 @@ ros-humble-navigation2 = "*"
 ros-humble-nav2-bringup = "*"
 ros-humble-laser-filters = "*"
 ros-humble-topic-tools = "*"
+ros-humble-joy = "*"
 
 [activation]
 scripts = ["pixi_activation.sh"]
