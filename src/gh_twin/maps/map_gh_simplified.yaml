@@ -1,4 +1,4 @@
-image: map_hardware.pgm
+image: map.pgm
 mode: trinary
 resolution: 0.04
 origin: [-8.31, -6.21, 0]
