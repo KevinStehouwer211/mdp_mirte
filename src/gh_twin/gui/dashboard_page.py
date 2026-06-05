@@ -22,7 +22,7 @@ import cv2
 import base64
 
 from gh_twin_interfaces.msg import Flower, Pest, Sensor
-#from lupin_greenhouse_msgs.msg import TagReading
+from lupin_greenhouse_msgs.msg import TagReading
 
 import random
 import math
@@ -201,14 +201,14 @@ class ROS2Interface(Node):
         # Subscribers for entity data
         self.flower_sub = self.create_subscription(
             Flower,
-            'flower_data',
+            'gui_flower_data',
             self.flower_callback_gui,
             10
         )
         
         self.pest_sub = self.create_subscription(
             Pest,
-            'pest_data',
+            'gui_pest_data',
             self.pest_callback_gui,
             10
         )
@@ -220,12 +220,12 @@ class ROS2Interface(Node):
         #     10
         # )
 
-        # self.sensor_sub = self.create_subscription(
-        #     TagReading,
-        #     '/greenhouse/telemetry',
-        #     self.sensor_callback_gui_new,
-        #     10
-        # )
+        self.sensor_sub = self.create_subscription(
+            TagReading,
+            '/greenhouse/telemetry',
+            self.sensor_callback_gui_new,
+            10
+        )
         
         # Publisher for robot goal position
         self.goal_pos_pub = self.create_publisher(
@@ -363,7 +363,7 @@ class ROS2Interface(Node):
             existing.update(sensor_entry)
         else:
             sensors.append(sensor_entry)
-    '''
+
     def sensor_callback_gui_new(self, msg: TagReading):
         #Update GUI sensors list from sensor messages.
         global sensors_new
@@ -410,7 +410,6 @@ class ROS2Interface(Node):
             if r.name in existing:
                 existing[r.name] = existing[r.name][-max_history:]
         
-    '''
     def image_callback(self, msg):
         # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
         cv_img = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')

@@ -34,10 +34,11 @@ class TypeDBStorageNode(Node):
         self.pests = []
         self.sensors = []
         self.scan_counter = 0
+        self.detection_distance_threshold = 0.08 # m
 
         self.create_subscription(Flower, 'flower_data', self.flower_callback, 10)
         self.create_subscription(Pest, 'pest_data', self.pest_callback, 10)
-        self.create_subscription(Sensor, 'sensor_data', self.sensor_callback, 10)
+        # self.create_subscription(Sensor, 'sensor_data', self.sensor_callback, 10)
 
         self.sensor_tag_sub = self.create_subscription(
             String, 
@@ -48,6 +49,8 @@ class TypeDBStorageNode(Node):
 
         self.bridge_client = self.create_client(GetTagReading, '/greenhouse_bridge/get_tag_reading')
         self.hmi_publisher = self.create_publisher(TagReading, '/greenhouse/telemetry', 10)
+        self.gui_flower_pub = self.create_publisher(Flower, 'gui_flower_data', 10)
+        self.gui_pest_pub = self.create_publisher(Pest, 'gui_pest_data', 10)
 
         self.get_logger().info('Typedb storage node is ready to receive flower, pest, and sensor messages.')
 
@@ -293,124 +296,193 @@ class TypeDBStorageNode(Node):
         raise RuntimeError(f"No current-location found for robot '{self.robot_id}'.")
 
     def flower_callback(self, msg: Flower):
+        current_x = msg.location.x
+        current_y = msg.location.y
+        current_color = msg.color
+
+        # 1. Efficient Duplicate Check
+        is_duplicate = False
+        threshold_sq = self.detection_distance_threshold ** 2
+
+        for plant in self.plants:
+            if plant['color'] == current_color:
+                # Calculate coordinate deltas
+                dx = plant['location']['x'] - current_x
+                dy = plant['location']['y'] - current_y
+                
+                # Fast Bounding Box Check (Square)
+                if abs(dx) <= self.detection_distance_threshold and abs(dy) <= self.detection_distance_threshold:
+                    # Precise Radius Check (using squared distance to avoid slow sqrt operations)
+                    if (dx**2 + dy**2) <= threshold_sq:
+                        is_duplicate = True
+                        break
+
+        if is_duplicate:
+            self.get_logger().debug(
+                f"Discarding duplicate {current_color} flower detected at ({current_x:.2f}, {current_y:.2f})"
+            )
+            return  # Drop the message and exit early
+
+        # 2. Process Unique Flower
         record = {
             'id': msg.id,
-            'location': {'x': msg.location.x, 'y': msg.location.y},
-            'color': msg.color,
+            'location': {'x': current_x, 'y': current_y},
+            'color': current_color,
             'bloomed': msg.bloomed,
             'robot_pose': msg.robot_pose,
         }
         self.plants.append(record)
+        
         self.get_logger().info(
-            f'Received flower id={msg.id}, loc=({msg.location.x:.2f},{msg.location.y:.2f}), '
-            f'color={msg.color}, bloomed={msg.bloomed}, pose=({msg.robot_pose.position.x:.2f},{msg.robot_pose.position.y:.2f})'
+            f'Received UNIQUE flower id={msg.id}, loc=({current_x:.2f},{current_y:.2f}), '
+            f'color={current_color}, bloomed={msg.bloomed}'
         )
 
+        # 3. TypeDB Insertion
         flower_id = f"flower{msg.id}"
         try:
             waypoint_id = self._get_waypoint_for_location(record['location'])
             query = f'''
             match
-              $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
+            $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
             insert
-              $flower isa plant,
+            $flower isa plant,
                 has id "{self._typeql_string(flower_id)}",
                 has scan-status "not-scanned";
-              $obs (observer: $wp, observed-plant: $flower) isa observation-location;
-              $loc (located: $flower, at-waypoint: $wp) isa object-location;
+            $obs (observer: $wp, observed-plant: $flower) isa observation-location;
+            $loc (located: $flower, at-waypoint: $wp) isa object-location;
             '''
             self._write_query(query)
             self.get_logger().info(f"Inserted flower {flower_id} at waypoint {waypoint_id} in TypeDB")
         except Exception as exception:
             self.get_logger().error(f"Failed to insert flower {flower_id} into TypeDB: {exception}")
 
+        # 4. Publish to GUI
+        # Since it passed the check, both TypeDB and this topic only receive unique flowers
+        self.gui_flower_pub.publish(msg)
+
     def pest_callback(self, msg: Pest):
+        current_x = msg.location.x
+        current_y = msg.location.y
+
+        # 1. Efficient Duplicate Check (Spatial Only)
+        is_duplicate = False
+        threshold_sq = self.detection_distance_threshold ** 2
+
+        for pest in self.pests:
+            # Calculate coordinate deltas
+            dx = pest['location']['x'] - current_x
+            dy = pest['location']['y'] - current_y
+            
+            # Fast Bounding Box Check (Square)
+            if abs(dx) <= self.detection_distance_threshold and abs(dy) <= self.detection_distance_threshold:
+                # Precise Radius Check (using squared distance to avoid slow sqrt operations)
+                if (dx**2 + dy**2) <= threshold_sq:
+                    is_duplicate = True
+                    break
+
+        if is_duplicate:
+            self.get_logger().debug(
+                f"Discarding duplicate pest detected at ({current_x:.2f}, {current_y:.2f})"
+            )
+            return  # Drop the message and exit early
+
+        # 2. Process Unique Pest
         record = {
             'id': msg.id,
-            'location': {'x': msg.location.x, 'y': msg.location.y},
+            'location': {'x': current_x, 'y': current_y},
             'sprayed': msg.sprayed,
+            'robot_pose': msg.robot_pose,  # Included from the message description
         }
         self.pests.append(record)
-        self.get_logger().info(f'Received pest id={msg.id}, loc=({msg.location.x:.2f},{msg.location.y:.2f}), sprayed={msg.sprayed}')
+        
+        self.get_logger().info(
+            f'Received UNIQUE pest id={msg.id}, loc=({current_x:.2f},{current_y:.2f}), sprayed={msg.sprayed}'
+        )
 
+        # 3. TypeDB Insertion
         pest_id = f"pest{msg.id}"
         try:
             waypoint_id = self._get_waypoint_for_location(record['location'])
             spray_status = "sprayed" if msg.sprayed else "not-sprayed"
             query = f'''
             match
-              $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
+            $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
             insert
-              $pest isa pest-detection,
+            $pest isa pest-detection,
                 has id "{self._typeql_string(pest_id)}",
                 has detection-status "detected",
                 has spray-status "{spray_status}";
-              $loc (located: $pest, at-waypoint: $wp) isa object-location;
+            $loc (located: $pest, at-waypoint: $wp) isa object-location;
             '''
             self._write_query(query)
             self.get_logger().info(f"Inserted pest {pest_id} into TypeDB at waypoint {waypoint_id}")
         except Exception as exception:
             self.get_logger().error(f"Failed to insert pest {pest_id} into TypeDB: {exception}")
 
-    def sensor_callback(self, msg: Sensor):
-        readings = [
-            {'type': r.type, 'value': r.value, 'unit': r.unit}
-            for r in msg.readings
-        ]
-        record = {
-            'id': msg.id,
-            'location': {'x': msg.location.x, 'y': msg.location.y},
-            'sensor_type': msg.sensor_type,
-            'readings': readings,
-        }
-        self.sensors.append(record)
-        self.get_logger().info(
-            f'Received sensor id={msg.id}, loc=({msg.location.x:.2f},{msg.location.y:.2f}), '
-            f'type={msg.sensor_type}, {len(readings)} readings'
-        )
+        # 4. Publish to GUI
+        # Both TypeDB and this topic will now only receive unique, filtered pests
+        self.gui_pest_pub.publish(msg)
 
-        try:
-            waypoint_id = self._get_waypoint_for_location(record['location'])
-        except Exception as exception:
-            self.get_logger().error(f"Failed to determine waypoint for sensor {msg.id}: {exception}")
-            return
+    # def sensor_callback(self, msg: Sensor):
+    #     readings = [
+    #         {'type': r.type, 'value': r.value, 'unit': r.unit}
+    #         for r in msg.readings
+    #     ]
+    #     record = {
+    #         'id': msg.id,
+    #         'location': {'x': msg.location.x, 'y': msg.location.y},
+    #         'sensor_type': msg.sensor_type,
+    #         'readings': readings,
+    #     }
+    #     self.sensors.append(record)
+    #     self.get_logger().info(
+    #         f'Received sensor id={msg.id}, loc=({msg.location.x:.2f},{msg.location.y:.2f}), '
+    #         f'type={msg.sensor_type}, {len(readings)} readings'
+    #     )
+
+    #     try:
+    #         waypoint_id = self._get_waypoint_for_location(record['location'])
+    #     except Exception as exception:
+    #         self.get_logger().error(f"Failed to determine waypoint for sensor {msg.id}: {exception}")
+    #         return
         
-        self.scan_counter += 1
-        scan_id = f"sensor{msg.id}-scan-{self.scan_counter}"
-        try:
-            query = f'''
-            match
-              $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
-            insert
-              $scan isa scan-event,
-                has id "{self._typeql_string(scan_id)}",
-                has image-uri "ros://sensor/{msg.id}";
-              $scanLoc (scan: $scan, location: $wp) isa waypoint-scan;
-            '''
-            self._write_query(query)
-            self.get_logger().info(f"Inserted scan event {scan_id} at waypoint {waypoint_id}")
-        except Exception as exception:
-            self.get_logger().error(f"Failed to insert scan event {scan_id}: {exception}")
-            return
+    #     self.scan_counter += 1
+    #     scan_id = f"sensor{msg.id}-scan-{self.scan_counter}"
+    #     try:
+    #         query = f'''
+    #         match
+    #           $wp isa waypoint, has id "{self._typeql_string(waypoint_id)}";
+    #         insert
+    #           $scan isa scan-event,
+    #             has id "{self._typeql_string(scan_id)}",
+    #             has image-uri "ros://sensor/{msg.id}";
+    #           $scanLoc (scan: $scan, location: $wp) isa waypoint-scan;
+    #         '''
+    #         self._write_query(query)
+    #         self.get_logger().info(f"Inserted scan event {scan_id} at waypoint {waypoint_id}")
+    #     except Exception as exception:
+    #         self.get_logger().error(f"Failed to insert scan event {scan_id}: {exception}")
+    #         return
 
-        for i, reading in enumerate(msg.readings):
-            reading_id = f"{scan_id}-reading-{i}"
-            query = f'''
-            match
-              $scan isa scan-event, has id "{self._typeql_string(scan_id)}";
-            insert
-              $reading isa sensor-reading,
-                has id "{self._typeql_string(reading_id)}",
-                has reading-type "{self._typeql_string(reading.type)}",
-                has reading-value {float(reading.value)},
-                has reading-unit "{self._typeql_string(reading.unit)}";
-              $readingLink (scan: $scan, reading: $reading) isa reading-link;
-            '''
-            try:
-                self._write_query(query)
-                self.get_logger().info(f"Inserted reading {reading_id} for scan {scan_id}")
-            except Exception as exception:
-                self.get_logger().error(f"Failed to insert reading {reading_id}: {exception}")
+    #     for i, reading in enumerate(msg.readings):
+    #         reading_id = f"{scan_id}-reading-{i}"
+    #         query = f'''
+    #         match
+    #           $scan isa scan-event, has id "{self._typeql_string(scan_id)}";
+    #         insert
+    #           $reading isa sensor-reading,
+    #             has id "{self._typeql_string(reading_id)}",
+    #             has reading-type "{self._typeql_string(reading.type)}",
+    #             has reading-value {float(reading.value)},
+    #             has reading-unit "{self._typeql_string(reading.unit)}";
+    #           $readingLink (scan: $scan, reading: $reading) isa reading-link;
+    #         '''
+    #         try:
+    #             self._write_query(query)
+    #             self.get_logger().info(f"Inserted reading {reading_id} for scan {scan_id}")
+    #         except Exception as exception:
+    #             self.get_logger().error(f"Failed to insert reading {reading_id}: {exception}")
 
     def vision_tag_callback(self, msg: String):
         """
@@ -446,19 +518,69 @@ class TypeDBStorageNode(Node):
             response = future.result()
             self.get_logger().info("Received successful service response from greenhouse bridge.")
             
-            # --- TypeDB Processing Section ---
-            # Add stuff here?
-            
             # --- HMI Relaying Section ---
-            # Extract the TagReading message payload from the response and publish it
-            # so that your GUI / HMI node can consume it.
+            # Extract the TagReading message payload from the response (matches your architecture)
             hmi_msg = response.reading
-            
+            tag_id = hmi_msg.tag_id
+            sim_time = hmi_msg.sim_time_of_day_seconds
+
+            # --- TypeDB Processing Section ---
+            # Loop through the list of nested SensorReading elements inside the response
+            for reading in hmi_msg.readings:
+                sensor_name = reading.name     # e.g., "temperature"
+                sensor_value = reading.value   # e.g., 24.5
+                
+                # Generate a globally unique ID for this specific reading point
+                unique_reading_id = f"{tag_id}_{sensor_name}_{int(sim_time)}"
+                
+                query = f'''
+                match
+                  $tag isa greenhouse-tag, has id "{self._typeql_string(tag_id)}";
+                insert
+                  $reading isa sensor-reading,
+                    has id "{self._typeql_string(unique_reading_id)}",
+                    has reading-type "{self._typeql_string(sensor_name)}",
+                    has reading-value {sensor_value},
+                    has reading-time {sim_time};
+                  (reading: $reading, host-tag: $tag) isa reading-link;
+                '''
+                
+                try:
+                    self._write_query(query)
+                    self.get_logger().debug(f"Inserted {sensor_name} value {sensor_value} for Tag {tag_id}")
+                except Exception as db_err:
+                    self.get_logger().error(f"Failed to insert sensor point {unique_reading_id}: {db_err}")
+
+            self.get_logger().info(f"Successfully committed all sensor array readings for Tag {tag_id} into TypeDB.")
+
+            # --- Publish to GUI ---
             self.hmi_publisher.publish(hmi_msg)
-            self.get_logger().info(f"Relayed telemetry for Tag {hmi_msg.tag_id} over /greenhouse/telemetry topic.")
+            self.get_logger().info(f"Relayed telemetry for Tag {tag_id} over /greenhouse/telemetry topic.")
 
         except Exception as e:
             self.get_logger().error(f"Service call failed: {str(e)}")
+
+    # def bridge_service_callback(self, future):
+    #     """
+    #     Callback triggered automatically when the greenhouse bridge responds.
+    #     """
+    #     try:
+    #         response = future.result()
+    #         self.get_logger().info("Received successful service response from greenhouse bridge.")
+            
+    #         # --- TypeDB Processing Section ---
+    #         # Add stuff here?
+            
+    #         # --- HMI Relaying Section ---
+    #         # Extract the TagReading message payload from the response and publish it
+    #         # so that your GUI / HMI node can consume it.
+    #         hmi_msg = response.reading
+            
+    #         self.hmi_publisher.publish(hmi_msg)
+    #         self.get_logger().info(f"Relayed telemetry for Tag {hmi_msg.tag_id} over /greenhouse/telemetry topic.")
+
+    #     except Exception as e:
+    #         self.get_logger().error(f"Service call failed: {str(e)}")
 
 
 def main(args=None):

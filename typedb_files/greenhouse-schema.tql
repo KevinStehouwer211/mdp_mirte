@@ -23,6 +23,7 @@ arm-state sub attribute, value string;
 reading-type sub attribute, value string;
 reading-value sub attribute, value double;
 reading-unit sub attribute, value string;
+reading-time sub attribute, value double;
 
 image-uri sub attribute, value string;
 
@@ -94,7 +95,8 @@ sensor-reading sub entity,
   owns id @key,
   owns reading-type,
   owns reading-value,
-  owns reading-unit,
+#  owns reading-unit,
+  owns reading-time,
   plays reading-link:reading;
 
 april-tag sub entity,
