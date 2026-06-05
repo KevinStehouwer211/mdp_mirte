@@ -21,7 +21,7 @@ from cv_bridge import CvBridge
 import cv2
 import base64
 
-from gh_twin_interfaces.msg import Flower, Pest, Sensor
+from gh_twin_msgs.msg import Flower, Pest, Sensor
 from lupin_greenhouse_msgs.msg import TagReading
 
 import random

@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from gh_twin_interfaces.msg import Pest, Flower, Sensor
+from gh_twin_msgs.msg import Pest, Flower, Sensor
 from typedb.driver import TypeDB, SessionType, TransactionType
 from std_msgs.msg import String
 from lupin_greenhouse_msgs.srv import GetTagReading
