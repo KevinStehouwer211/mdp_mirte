@@ -2,9 +2,9 @@ import rclpy
 from rclpy.node import Node
 
 # Replace these with your actual message and service imports
-from std_msgs.msg import String, Float32
-# Placeholder: replace with your actual LED service import
-from custom_msgs.srv import SetColor
+from mirte_msgs.srv import SetNeopixel
+from mirte_msgs.msg import NeopixelColor, SetSpeed
+from std_msgs.msg import String
 
 class LedControllerNode(Node):
     def __init__(self):
@@ -35,7 +35,7 @@ class LedControllerNode(Node):
         }
 
         # --- Service Client ---
-        self.led_client = self.create_client(SetColor, '/io/leds/leds/set_color')
+        self.led_client = self.create_client(SetNeopixel, '/io/leds/leds/set_color')
 
         # --- Subscriptions ---
         self.state_sub = self.create_subscription(String, 'robot_state', self.state_callback, 10)
@@ -45,10 +45,10 @@ class LedControllerNode(Node):
         def create_motor_callback(motor_name):
             return lambda msg: self.motor_speed_callback(msg, motor_name)
 
-        self.fl_sub = self.create_subscription(Float32, '/io/motor/front_left/speed', create_motor_callback('front_left'), 10)
-        self.fr_sub = self.create_subscription(Float32, '/io/motor/front_right/speed', create_motor_callback('front_right'), 10)
-        self.rl_sub = self.create_subscription(Float32, '/io/motor/rear_left/speed', create_motor_callback('rear_left'), 10)
-        self.rr_sub = self.create_subscription(Float32, '/io/motor/rear_right/speed', create_motor_callback('rear_right'), 10)
+        self.fl_sub = self.create_subscription(SetSpeed, '/io/motor/front_left/speed', create_motor_callback('front_left'), 10)
+        self.fr_sub = self.create_subscription(SetSpeed, '/io/motor/front_right/speed', create_motor_callback('front_right'), 10)
+        self.rl_sub = self.create_subscription(SetSpeed, '/io/motor/rear_left/speed', create_motor_callback('rear_left'), 10)
+        self.rr_sub = self.create_subscription(SetSpeed, '/io/motor/rear_right/speed', create_motor_callback('rear_right'), 10)
 
         # --- Timer for Blinking ---
         # 1.0 second timer to toggle LEDs on and off when moving
@@ -63,13 +63,14 @@ class LedControllerNode(Node):
             self.get_logger().debug("LED service not available yet.")
             return
 
-        request = SetColor.Request()
+        request = SetNeopixel.Request()
         
-        # Populate the request based on your specific service definition.
-        # Example assuming r, g, b fields:
-        request.r = color[0]
-        request.g = color[1]
-        request.b = color[2]
+        color_msg = NeopixelColor()
+        color_msg.r = int(color[0])
+        color_msg.g = int(color[1])
+        color_msg.b = int(color[2])
+
+        request.color = color_msg
 
         # Async call to avoid blocking the ROS 2 executor
         self.led_client.call_async(request)
@@ -105,8 +106,8 @@ class LedControllerNode(Node):
             self.op_mode = msg.data.lower()
             self.update_leds()
 
-    def motor_speed_callback(self, msg: Float32, motor_name: str):
-        is_motor_moving = abs(msg.data) > self.speed_threshold
+    def motor_speed_callback(self, msg: SetSpeed, motor_name: str):
+        is_motor_moving = abs(msg.speed) > self.speed_threshold
         self.motor_states[motor_name] = is_motor_moving
 
         any_motor_moving = any(self.motor_states.values())

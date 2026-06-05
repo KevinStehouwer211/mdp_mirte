@@ -5,8 +5,8 @@ from pathlib import Path
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
 
-# NOTE: Adjust these message types if your topics use different ones!
-from std_msgs.msg import String, Float32
+from mirte_msgs.msg import SetSpeed
+from std_msgs.msg import String
 
 class RobotAudioNode(Node):
     def __init__(self):
@@ -44,10 +44,10 @@ class RobotAudioNode(Node):
         def create_motor_callback(motor_name):
             return lambda msg: self.motor_speed_callback(msg, motor_name)
 
-        self.fl_sub = self.create_subscription(Float32, '/io/motor/front_left/speed', create_motor_callback('front_left'), 10)
-        self.fr_sub = self.create_subscription(Float32, '/io/motor/front_right/speed', create_motor_callback('front_right'), 10)
-        self.rl_sub = self.create_subscription(Float32, '/io/motor/rear_left/speed', create_motor_callback('rear_left'), 10)
-        self.rr_sub = self.create_subscription(Float32, '/io/motor/rear_right/speed', create_motor_callback('rear_right'), 10)
+        self.fl_sub = self.create_subscription(SetSpeed, '/io/motor/front_left/speed', create_motor_callback('front_left'), 10)
+        self.fr_sub = self.create_subscription(SetSpeed, '/io/motor/front_right/speed', create_motor_callback('front_right'), 10)
+        self.rl_sub = self.create_subscription(SetSpeed, '/io/motor/rear_left/speed', create_motor_callback('rear_left'), 10)
+        self.rr_sub = self.create_subscription(SetSpeed, '/io/motor/rear_right/speed', create_motor_callback('rear_right'), 10)
 
         # --- Timers ---
         # Timer to check and play the error sound every 5 seconds
@@ -80,10 +80,10 @@ class RobotAudioNode(Node):
             self.get_logger().info("Robot is in error state. Playing error sound.")
             self.play_sound(self.error_sound)
 
-    def motor_speed_callback(self, msg: Float32, motor_name: str):
+    def motor_speed_callback(self, msg: SetSpeed, motor_name: str):
         """Handles rising edge detection for overall robot movement."""
         # 1. Update the individual motor's state
-        is_motor_moving = abs(msg.data) > self.speed_threshold
+        is_motor_moving = abs(msg.speed) > self.speed_threshold
         self.motor_states[motor_name] = is_motor_moving
 
         # 2. Check global state: is ANY motor moving?
