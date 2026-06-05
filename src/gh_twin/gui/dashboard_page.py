@@ -498,7 +498,7 @@ if not _ros_thread_started:
 
 @ui.page('/')
 def main_page():
-
+    
     # --------------------------------------------------------
     # LAYOUT
     # --------------------------------------------------------
@@ -624,24 +624,34 @@ def main_page():
                 ui.button(on_click=logout, icon='logout').props('outline round')
                 
         # Get any clicked point
-        greenhouse  = ui.element('div').classes('map-panel')  # for click testing
+        greenhouse  = ui.image('map_hmi_updated.png').classes('map-panel')
+            # for click testing
         greenhouse.on('click', lambda e: ros2_interface.go_to_pos(e.args["clientX"], e.args["clientY"]))
 
         with greenhouse:
 
             ui.element('div').classes('greenhouse-border')
 
-            ui.html('<div class="home-station">Home</div>')
+            #ui.html('<div class="home-station">Home</div>')
 
 
-            for bx, by in beds:
-                ui.html(
-                    f'<div class="plant-bed" '
-                    f'style="left:{bx}px; top:{by}px;"></div>'
-                )
-
+            # for bx, by in beds:
+            #     ui.html(
+            #         f'<div class="plant-bed" '
+            #         f'style="left:{bx}px; top:{by}px;"></div>'
+            #     )
+            ui.add_css('''
+                @layer utilities {
+                    .entity{
+                        background: transparent !important;
+                        background-color: transparent !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                    }
+                }
+            ''')
+            
             # Plotting plants
-
             for plant in plants:
                 status_text = 'Bloomed' if plant['bloomed'] else 'Not Bloomed'
                 pid = plant['id']
@@ -653,15 +663,16 @@ def main_page():
                     f'left:{plant["x"]}px;'
                     f'top:{plant["y"]}px;'
                     f'z-index:10;'
-                    f'overflow:visible;'
+                    f'overflow:visible !important; '
                 ).classes('entity'):
                     
                     ui.image(filename).style(
-                        'width:35px;'
-                        'height:35px;'
+                        'width:20px;'
+                        'height:20px;'
                         'cursor:pointer;'
                         'background: transparent;'
                         'transition: transform 0.2s ease;'
+                        'overflow:visible !important;'
                     ).classes(animation_class)
                     
                     with ui.element('div').classes('tooltip').props('pointer-events-auto'):
@@ -684,15 +695,16 @@ def main_page():
                     f'left:{bug["x"]}px;'
                     f'top:{bug["y"]}px;'
                     f'z-index:10;'
-                    f'overflow:visible;'
+                    f'overflow:visible !important; '
                 ).classes('entity'):
 
                     ui.image('bug.png').style(
-                        'width:28px;'
-                        'height:28px;'
+                        'width:20px;'
+                        'height:20px;'
                         'cursor:pointer;'
                         'background: transparent;'
                         'transition: transform 0.2s ease;'
+                        'overflow:visible !important;'
                     )
 
                     with ui.element('div').classes('tooltip').props('pointer-events-auto'):
@@ -711,15 +723,16 @@ def main_page():
                     f'left:{sensor["x"]}px;'
                     f'top:{sensor["y"]}px;'
                     f'z-index:10;'
-                    f'overflow:visible;'
+                    f'overflow:visible !important;'
                 ).classes('entity'):
 
                     ui.image('sensor.png').style(
-                        'width:28px;'
-                        'height:28px;'
+                        'width:20px;'
+                        'height:20px;'
                         'cursor:pointer;'
                         'background: transparent;'
                         'transition: transform 0.2s ease;'
+                        'overflow:visible !important;'
                     )
 
                     with ui.element('div').classes('tooltip').props('pointer-events-auto'):
@@ -755,7 +768,7 @@ def main_page():
                             on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
                         ).classes('tooltip-btn').props('no-caps unelevated')
 
-
+            
             # ------------------------------------------------
             # ROBOT MARKER
             # A single persistent <div> is injected once.
