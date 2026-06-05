@@ -665,7 +665,7 @@ def main_page():
                     f'z-index:10;'
                     f'overflow:visible !important; '
                 ).classes('entity'):
-                    
+                     
                     ui.image(filename).style(
                         'width:20px;'
                         'height:20px;'
