@@ -74,8 +74,8 @@ camera = {
 
 # Current robot pose
 robot_pos = {
-    'x': 50.0,   # normalized position in %
-    'y': 50.0,
+    'x': 1500.0,   # normalized position in %
+    'y': 500.0,
     'theta': 0.0, # normalized orientation in %
 }
 
@@ -159,7 +159,7 @@ sensors_new = [
 bridge = CvBridge()
 
 # Whether robot is connected or not
-robot_status = 0
+robot_status = 1
 prev_robot_status = 0
 
 #########################################################################################
@@ -409,6 +409,9 @@ class ROS2Interface(Node):
                 existing[r.name] = existing[r.name][-max_history:]
         
     '''
+    def real_to_pixel_transform(self,x,y):
+        
+        pass
     def image_callback(self, msg):
         # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
         cv_img = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -624,7 +627,8 @@ def main_page():
                 ui.button(on_click=logout, icon='logout').props('outline round')
                 
         # Get any clicked point
-        greenhouse  = ui.image('map_hmi_updated.png').classes('map-panel')
+        greenhouse  = ui.image('map_hmi_updated.png').classes('map-panel').style('position: relative; display: inline-block; overflow: visible !important;')
+
             # for click testing
         greenhouse.on('click', lambda e: ros2_interface.go_to_pos(e.args["clientX"], e.args["clientY"]))
 
@@ -782,8 +786,9 @@ def main_page():
                 id="robot-marker"
                 class="robot"
                 style="
-                    left:50%;
-                    top:50%;
+                    position: absolute !important;
+                    left:600px;
+                    top:100px;
                 ">
                 <div class="tooltip">
                     <b>Robot</b>
@@ -827,8 +832,8 @@ def main_page():
             ui.run_javascript(f"""
                 var el = document.getElementById('robot-marker');
                 if (el) {{
-                    el.style.left = '{x:.2f}%';
-                    el.style.top  = '{y:.2f}%';
+                    el.style.left = '{x:.2f}px';
+                    el.style.top  = '{y:.2f}px';
                     el.style.background = '#2563eb';
                     el.style.transform = 'translate(-50%, -50%) rotate({theta:.1f}deg)';
                 }}
@@ -850,10 +855,12 @@ def main_page():
             
             battery_progress_bar.set_value(battery_level)
             battery_label.set_text(f'{battery_level*100:.0f}%')
-            if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
-                robot_status = 0
-                alert_msgs.append("Robot connection timed out")
-                warning_msgs.append("Robot connection lost")
+            
+            
+            # if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
+            #     robot_status = 0
+            #     alert_msgs.append("Robot connection timed out")
+            #     warning_msgs.append("Robot connection lost")
             
         else:
             robot_status_display.set_text('Status: Offline')
