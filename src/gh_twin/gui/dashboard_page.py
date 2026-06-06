@@ -5,6 +5,8 @@ from datetime import datetime
 from nicegui import ui, app, events
 
 import threading
+import yaml
+
 
 import rclpy
 from rclpy.node import Node
@@ -35,6 +37,8 @@ MAP_HEIGHT_PX = 600
 TIMEOUT_STATUS_OFFLINE = 5
 MAP_RESOLUTION = 98*0.04/MAP_HEIGHT_PX  # 1px/m
 map_origin_px = [920, MAP_HEIGHT_PX-30]
+plant_data_file = 'plants.yaml'
+bug_data_file = 'bugs.yaml'
 
 
 CAMERA_TOPICS = [
@@ -110,28 +114,10 @@ time_points = [
 
 sensor_charts = []
 
-
-
-# ------------------------------------------------
-# PLANT BEDS
-# ------------------------------------------------
-
-beds = [
-    (160, 95),  (460, 95),  (760, 95),  (1060, 95),
-    (160, 475), (460, 475), (760, 475), (1060, 475),
-]
             
-plants = [
-    {'id': 'P1', 'x': 170, 'y': 105, 'bloomed': True, 'color': 'White'},
-    {'id': 'P2', 'x': 470, 'y': 485, 'bloomed': True, 'color': 'Pink'},
-    {'id': 'P3', 'x': 770, 'y': 105, 'bloomed': False, 'color': 'Red'},
-    {'id': 'P4', 'x': 1070, 'y': 105, 'bloomed': False, 'color': 'White'},
-]
+plants = yaml.safe_load(open(plant_data_file, 'r'))
 
-bugs = [
-    {'id': 'B1', 'x': 180, 'y': 235},
-    {'id': 'B2', 'x': 470, 'y': 150},
-]
+bugs = yaml.safe_load(open(bug_data_file, 'r'))
 
 sensors = [
     {'id': 'S1', 'x': 1070, 'y': 180, 'type': 'Humidity', 'data': [22,22.4,22.8] },
@@ -268,14 +254,6 @@ class ROS2Interface(Node):
         ros_x = msg.pose.pose.position.x
         ros_y = msg.pose.pose.position.y
         ros_rot = msg.pose.pose.orientation
-
-        # normalized_x = (
-        #     ros_x + MAP_WIDTH_METERS / 2
-        # ) / MAP_WIDTH_METERS
-
-        # normalized_y = (
-        #     ros_y + MAP_HEIGHT_METERS / 2
-        # ) / MAP_HEIGHT_METERS
 
         # Write into the shared dict
         robot_pos['x'], robot_pos['y'] = self.real_to_pixel_transform(ros_x, ros_y)
@@ -555,6 +533,15 @@ def main_page():
                         command = 'l'
                         ui.notify('Rotating left')
                     ros2_interface.send_teleop_command(command)
+                    
+            def save_data():
+                with open(plant_data_file, 'w') as file:
+                    yaml.safe_dump(plants, file, default_flow_style=False, sort_keys=False)
+                
+                with open(bug_data_file, 'w') as file:
+                    yaml.safe_dump(bugs, file, default_flow_style=False, sort_keys=False)
+                    
+                add_log_entry(warnings_scroll, "Data saved successfully", "text-amber-600")
 
                     
             keyboard = ui.keyboard(on_key=handle_key)
@@ -625,12 +612,19 @@ def main_page():
                 ''')
             
             ui.separator()
-            save_button = ui.button('SAVE DATA', on_click=lambda: ui.notify("Data saved successfully!")).classes('w-full')
+            save_button = ui.button('SAVE DATA', on_click=lambda: save_data()).classes('w-full')
             
             ui.separator()
             
             def logout() -> None:
                 app.storage.user.clear()
+                    
+                with open(plant_data_file, 'w') as file:
+                    yaml.safe_dump(plants, file, default_flow_style=False, sort_keys=False)
+                
+                with open(bug_data_file, 'w') as file:
+                    yaml.safe_dump(bugs, file, default_flow_style=False, sort_keys=False)
+                    
                 ui.notify('Logged out successfully', color='positive')
                 ui.navigate.to('/login')
 
@@ -824,7 +818,7 @@ def main_page():
 
             # 2. WARNINGS BOX (System Notices)
             with ui.card().classes('flex-1 warning-panel'):
-                ui.label('⚠️ Warnings').classes('text-lg font-bold text-gray-800 border-b pb-2 w-full')
+                ui.label('⚠️ Log').classes('text-lg font-bold text-gray-800 border-b pb-2 w-full')
         
                 # Scroll area matching the height of the alerts box
                 warnings_scroll = ui.scroll_area().classes('h-[150px] w-full mt-2')
