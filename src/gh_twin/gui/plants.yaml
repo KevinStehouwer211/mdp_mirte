@@ -10,6 +10,6 @@
   color: Pink
 - id: P3
   x: 900
-  y: 8999
+  y: 300
   bloomed: true
   color: white
