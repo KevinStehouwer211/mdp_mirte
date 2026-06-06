@@ -37,6 +37,7 @@ MAP_HEIGHT_PX = 600
 TIMEOUT_STATUS_OFFLINE = 5
 MAP_RESOLUTION = 98*0.04/MAP_HEIGHT_PX  # 1px/m
 map_origin_px = [920, MAP_HEIGHT_PX-30]
+map_origin_px = [0, 570]
 plant_data_file = 'plants.yaml'
 bug_data_file = 'bugs.yaml'
 
@@ -542,6 +543,86 @@ def main_page():
                     yaml.safe_dump(bugs, file, default_flow_style=False, sort_keys=False)
                     
                 add_log_entry(warnings_scroll, "Data saved successfully", "text-amber-600")
+                
+            def draw_plants():
+                # Plotting plants
+                for plant in plants:
+                    status_text = 'Bloomed' if plant['bloomed'] else 'Not Bloomed'
+                    pid = plant['id']
+                    filename = plant['color'].lower() + '_flower.png'
+                    animation_class = 'blooming' if plant['bloomed'] else ''
+                
+                    with ui.element('div').style(
+                        f'position:absolute;'
+                        f'left:{plant["x"]}px;'
+                        f'top:{plant["y"]}px;'
+                        f'z-index:10;'
+                        f'overflow:visible !important; '
+                    ).classes('entity'):
+                     
+                        ui.image(filename).style(
+                            'width:20px;'
+                            'height:20px;'
+                            'cursor:pointer;'
+                            'background: transparent;'
+                            'transition: transform 0.2s ease;'
+                            'overflow:visible !important;'
+                        ).classes(animation_class)
+                    
+                        with ui.element('div').classes('tooltip').props('pointer-events-auto'):
+                        
+                                ui.html(f'<b>Plant {pid}</b><br>Status: {status_text}')
+                                ui.html(f'Color: {plant["color"]}')
+
+                                ui.button(
+                                    'Go To Position',
+                                    on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
+                                ).classes('tooltip-btn')
+
+            def draw_sensors():
+            
+                for sensor in sensors:
+                    sid = sensor['id']
+                    with ui.element('div').style(
+                        f'position:absolute;'
+                        f'left:{sensor["x"]}px;'
+                        f'top:{sensor["y"]}px;'
+                        f'z-index:10;'
+                        f'overflow:visible !important;'
+                    ).classes('entity'):
+                        ui.image('sensor.png').style(
+                            'width:20px;'
+                            'height:20px;'
+                            'cursor:pointer;'
+                            'background: transparent;'
+                            'transition: transform 0.2s ease;'
+                            'overflow:visible !important;'
+                        )
+                        with ui.element('div').classes('tooltip').props('pointer-events-auto'):
+                            
+                            with ui.card().style('width:300px; border-radius:20px;'):
+
+                                chart = ui.echart({
+                                    'backgroundColor': 'transparent',
+                                    'animation': True,
+                                    'tooltip': {'trigger': 'axis'},
+                                    'xAxis': {'type': 'category','data': time_points,'boundaryGap': False,},
+                                    'yAxis': {'type': 'value','name': 'units',},
+                                    'series': [
+                                        {'data': sensor["data"], 'type': 'line', 'smooth': True, 'areaStyle': {},}
+                                    ],
+                                }).style(
+                                'height:300px'
+                                )
+                            sensor_charts.append({
+                                'chart': chart,
+                                'data': sensor["data"],
+                            })
+                        
+                            ui.button(
+                                'Take Reading',
+                                on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
+                            ).classes('tooltip-btn').props('no-caps unelevated')
 
                     
             keyboard = ui.keyboard(on_key=handle_key)
@@ -575,7 +656,7 @@ def main_page():
                 
                 ros2_interface.switch_topic(CAMERA_TOPICS[camera])
                 current_topic.set_text(camera)
-                add_log_entry(warnings_scroll, f'Switched to {camera}', "text-amber-600")
+                add_log_entry(warnings_scroll, f'Switched to {camera})', "text-amber-600")
                 #ui.notify(f'Switched to {topic}')
                 
             camera_dropdown = ui.dropdown_button('Select Camera', auto_close=True).props('no-caps')
@@ -661,41 +742,10 @@ def main_page():
                 }
             ''')
             
-            # Plotting plants
-            for plant in plants:
-                status_text = 'Bloomed' if plant['bloomed'] else 'Not Bloomed'
-                pid = plant['id']
-                filename = plant['color'].lower() + '_flower.png'
-                animation_class = 'blooming' if plant['bloomed'] else ''
-                
-                with ui.element('div').style(
-                    f'position:absolute;'
-                    f'left:{plant["x"]}px;'
-                    f'top:{plant["y"]}px;'
-                    f'z-index:10;'
-                    f'overflow:visible !important; '
-                ).classes('entity'):
-                     
-                    ui.image(filename).style(
-                        'width:20px;'
-                        'height:20px;'
-                        'cursor:pointer;'
-                        'background: transparent;'
-                        'transition: transform 0.2s ease;'
-                        'overflow:visible !important;'
-                    ).classes(animation_class)
-                    
-                    with ui.element('div').classes('tooltip').props('pointer-events-auto'):
-                        
-                            ui.html(f'<b>Plant {pid}</b><br>Status: {status_text}')
-                            ui.html(f'Color: {plant["color"]}')
-
-                            ui.button(
-                                'Go To Position',
-                                on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
-                            ).classes('tooltip-btn')
-
-
+            #draw_plants()
+            
+            #draw_sensors()
+            
             # Plotting bugs
             
             for bug in bugs:
@@ -724,59 +774,6 @@ def main_page():
                             on_click=lambda b=bug: ros2_interface.go_to_pos(b['x'], b['y'])
                         ).classes('tooltip-btn').props('no-caps unelevated')
 
-            # Plotting sensors
-            
-            for sensor in sensors:
-                sid = sensor['id']
-                with ui.element('div').style(
-                    f'position:absolute;'
-                    f'left:{sensor["x"]}px;'
-                    f'top:{sensor["y"]}px;'
-                    f'z-index:10;'
-                    f'overflow:visible !important;'
-                ).classes('entity'):
-
-                    ui.image('sensor.png').style(
-                        'width:20px;'
-                        'height:20px;'
-                        'cursor:pointer;'
-                        'background: transparent;'
-                        'transition: transform 0.2s ease;'
-                        'overflow:visible !important;'
-                    )
-
-                    with ui.element('div').classes('tooltip').props('pointer-events-auto'):
-                        
-                        with ui.card().style('width:300px; border-radius:20px;'):
-
-                            chart = ui.echart({
-
-                                'backgroundColor': 'transparent',
-
-                                'animation': True,
-
-                                'tooltip': {'trigger': 'axis'},
-
-                                'xAxis': {'type': 'category','data': time_points,'boundaryGap': False,},
-
-                                'yAxis': {'type': 'value','name': 'units',},
-
-                                'series': [
-                                    {'data': sensor["data"], 'type': 'line', 'smooth': True, 'areaStyle': {},}
-                                ],
-
-                            }).style(
-                            '   height:300px'
-                            )
-                        sensor_charts.append({
-                            'chart': chart,
-                            'data': sensor["data"],
-                        })
-                        
-                        ui.button(
-                            'Take Reading',
-                            on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
-                        ).classes('tooltip-btn').props('no-caps unelevated')
 
             
             # ------------------------------------------------
@@ -865,7 +862,6 @@ def main_page():
             battery_progress_bar.set_value(battery_level)
             battery_label.set_text(f'{battery_level*100:.0f}%')
             
-            
             # if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
             #     robot_status = 0
             #     alert_msgs.append("Robot connection timed out")
@@ -904,26 +900,34 @@ def main_page():
         warning_msgs.clear()    
             
     # Update sensor charts with new random data for demonstration
-    def update_chart():
+    def update_env_data():
 
-        for item in sensor_charts:
+        if robot_status:
+            
+            #draw_plants()
+            
+            #draw_bugs()
+            
+            #draw_sensors()
 
-            data = item['data']
-            chart = item['chart']
+            for item in sensor_charts:
 
-            data.append(round(data[-1] + random.uniform(-0.5, 0.5),2))
+                data = item['data']
+                chart = item['chart']
 
-            data.pop(0)
+                data.append(round(data[-1] + random.uniform(-0.5, 0.5),2))
 
-            chart.options['series'][0]['data'] = data
+                data.pop(0)
 
-            chart.update()
+                chart.options['series'][0]['data'] = data
+
+                chart.update()
             
 
             
 
     ui.timer(0.1, update_robot)
     ui.timer(0.1, update_camera)
-    ui.timer(0.5, update_chart)
+    ui.timer(5.0, update_env_data)
 
 
