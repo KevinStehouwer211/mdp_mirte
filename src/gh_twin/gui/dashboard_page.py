@@ -30,9 +30,12 @@ import math
 
 
 # Constants
-MAP_WIDTH_METERS  = 10.0
-MAP_HEIGHT_METERS = 5.0
+MAP_WIDTH_PX  = 266*2*2.7
+MAP_HEIGHT_PX = 600
 TIMEOUT_STATUS_OFFLINE = 5
+MAP_RESOLUTION = 98*0.04/MAP_HEIGHT_PX  # 1px/m
+map_origin_px = [920, MAP_HEIGHT_PX-30]
+
 
 CAMERA_TOPICS = [
     'None',
@@ -74,8 +77,8 @@ camera = {
 
 # Current robot pose
 robot_pos = {
-    'x': 1500.0,   # normalized position in %
-    'y': 500.0,
+    'x': map_origin_px[0],   # normalized position in %
+    'y': map_origin_px[1],
     'theta': 0.0, # normalized orientation in %
 }
 
@@ -266,17 +269,16 @@ class ROS2Interface(Node):
         ros_y = msg.pose.pose.position.y
         ros_rot = msg.pose.pose.orientation
 
-        normalized_x = (
-            ros_x + MAP_WIDTH_METERS / 2
-        ) / MAP_WIDTH_METERS
+        # normalized_x = (
+        #     ros_x + MAP_WIDTH_METERS / 2
+        # ) / MAP_WIDTH_METERS
 
-        normalized_y = (
-            ros_y + MAP_HEIGHT_METERS / 2
-        ) / MAP_HEIGHT_METERS
+        # normalized_y = (
+        #     ros_y + MAP_HEIGHT_METERS / 2
+        # ) / MAP_HEIGHT_METERS
 
         # Write into the shared dict
-        robot_pos['x'] = normalized_x * 100
-        robot_pos['y'] = (1 - normalized_y) * 100
+        robot_pos['x'], robot_pos['y'] = self.real_to_pixel_transform(ros_x, ros_y)
         robot_pos['theta'] = math.atan2(ros_rot.z, ros_rot.w) * 2 * (180 / math.pi)  # Convert to degrees
         
         
@@ -302,11 +304,13 @@ class ROS2Interface(Node):
         # Convert color to the format used in the GUI (lowercase for image lookup)
         color = msg.color if msg.color else 'white'
         
+        x, y = self.real_to_pixel_transform(msg.location.x, msg.location.y)
+        
         # Create or update plant entry
         plant_entry = {
             'id': f'P{msg.id}',
-            'x': msg.location.x if msg.location else 0,
-            'y': msg.location.y if msg.location else 0,
+            'x': x,
+            'y': y,
             'bloomed': msg.bloomed,
             'color': color,
         }
@@ -322,11 +326,13 @@ class ROS2Interface(Node):
         """Update GUI bugs list from pest messages."""
         global bugs
         
+        x, y = self.real_to_pixel_transform(msg.location.x, msg.location.y)
+        
         # Create or update bug entry
         bug_entry = {
             'id': f'B{msg.id}',
-            'x': msg.location.x,
-            'y': msg.location.y,
+            'x': x,
+            'y': y,
         }
         
         # Update or add to bugs list
@@ -346,11 +352,13 @@ class ROS2Interface(Node):
         # Keep only the most recent readings for the chart (e.g., last 10)
         values = values[-10:] if len(values) > 10 else values
         
+        x, y = self.real_to_pixel_transform(msg.location.x, msg.location.y)
+        
         # Create or update sensor entry
         sensor_entry = {
             'id': f'S{msg.id}',
-            'x': msg.location.x,
-            'y': msg.location.y,
+            'x': x,
+            'y': y,
             'type': msg.sensor_type if msg.sensor_type else 'Unknown',
             'data': values if values else [0],
         }
@@ -409,9 +417,13 @@ class ROS2Interface(Node):
                 existing[r.name] = existing[r.name][-max_history:]
         
     '''
+    
     def real_to_pixel_transform(self,x,y):
-        
-        pass
+        return [(y/MAP_RESOLUTION) + map_origin_px[0], map_origin_px[1] - (x/MAP_RESOLUTION)]
+    
+    def pixel_to_real_transform(self,x,y):
+        return [(map_origin_px[1] - x)*MAP_RESOLUTION, (y - map_origin_px[0])*MAP_RESOLUTION]
+    
     def image_callback(self, msg):
         # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
         cv_img = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -420,8 +432,7 @@ class ROS2Interface(Node):
 
     def go_to_pos(self, pos_x, pos_y):
         # Convert % position back to ROS2 map coordinates
-        ros_x = (pos_x / 100) * MAP_WIDTH_METERS  - MAP_WIDTH_METERS  / 2
-        ros_y = (pos_y / 100) * MAP_HEIGHT_METERS - MAP_HEIGHT_METERS / 2
+        ros_x, ros_y = self.pixel_to_real_transform(pos_x, pos_y)
         goal_pose = Pose()
         goal_pose.position.x = ros_x
         goal_pose.position.y = ros_y
@@ -828,7 +839,10 @@ def main_page():
             operating_mode_dropdown.enable()
             x = robot_pos['x']
             y = robot_pos['y']
-            theta = robot_pos['theta'] + 90
+            
+            x, y = ros2_interface.real_to_pixel_transform(0,0)
+            
+            theta = robot_pos['theta']
             ui.run_javascript(f"""
                 var el = document.getElementById('robot-marker');
                 if (el) {{
