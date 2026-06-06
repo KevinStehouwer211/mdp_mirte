@@ -41,11 +41,11 @@ plant_data_file = 'plants.yaml'
 bug_data_file = 'bugs.yaml'
 
 
-CAMERA_TOPICS = [
-    'None',
-    '/camera/color/image_raw/compressed',
-    '/wrist_camera/image_raw/compressed',
-]
+CAMERA_TOPICS = {
+    'None': None,
+    'Wrist Camera': '/wrist_camera/image_raw/compressed',
+    'Front Camera': '/camera/color/image_raw/compressed'    
+}
 
 robot_pose_topic = '/amcl_pose'
 
@@ -571,19 +571,20 @@ def main_page():
                 'font-size:11px; color:grey; margin-bottom:6px;'
             )
 
-            def switch_camera(topic: str):
+            def switch_camera(camera: str):
                 
-                ros2_interface.switch_topic(topic)
-                current_topic.set_text(topic)
-                ui.notify(f'Switched to {topic}')
+                ros2_interface.switch_topic(CAMERA_TOPICS[camera])
+                current_topic.set_text(camera)
+                add_log_entry(warnings_scroll, f'Switched to {camera}', "text-amber-600")
+                #ui.notify(f'Switched to {topic}')
                 
             camera_dropdown = ui.dropdown_button('Select Camera', auto_close=True).props('no-caps')
 
             with camera_dropdown:
-                for topic in CAMERA_TOPICS:
+                for key, value in CAMERA_TOPICS.items():
                     ui.item(
-                        topic,
-                    on_click=lambda t=topic: switch_camera(t)
+                        key,
+                    on_click=lambda t=key: switch_camera(t)
                     )
 
             # ── Camera image display ─────────────────────────────────────
