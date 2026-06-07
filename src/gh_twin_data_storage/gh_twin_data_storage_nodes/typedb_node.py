@@ -2,9 +2,8 @@
 
 import rclpy
 from rclpy.node import Node
-from gh_twin_interfaces.msg import Pest, Flower, Sensor
+from gh_twin_msgs.msg import Pest, Flower, Sensor
 from typedb.driver import TypeDB, SessionType, TransactionType
-from std_msgs.msg import String
 from lupin_greenhouse_msgs.srv import GetTagReading
 from lupin_greenhouse_msgs.msg import TagReading
 import yaml
@@ -41,7 +40,7 @@ class TypeDBStorageNode(Node):
         # self.create_subscription(Sensor, 'sensor_data', self.sensor_callback, 10)
 
         self.sensor_tag_sub = self.create_subscription(
-            String, 
+            Sensor,
             '/vision/scanned_tag', # TODO: Update this topic name to match your actual vision output topic
             self.vision_tag_callback, 
             10
@@ -484,11 +483,11 @@ class TypeDBStorageNode(Node):
     #         except Exception as exception:
     #             self.get_logger().error(f"Failed to insert reading {reading_id}: {exception}")
 
-    def vision_tag_callback(self, msg: String):
+    def vision_tag_callback(self, msg: Sensor):
         """
         Triggered automatically when the vision node broadcasts a newly scanned tag.
         """
-        tag_id = msg.data
+        tag_id = msg.tag_id
         self.request_tag_reading(tag_id)
 
     def request_tag_reading(self, tag_id: str):

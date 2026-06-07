@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(gh_twin_interfaces)
+project(gh_twin_msgs)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -18,7 +18,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Flower.msg"
   "msg/Pest.msg"
   "msg/Sensor.msg"
-  "msg/SensorData.msg"
   DEPENDENCIES geometry_msgs std_msgs
 )
 
