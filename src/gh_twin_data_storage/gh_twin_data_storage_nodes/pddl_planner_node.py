@@ -146,14 +146,29 @@ class PddlPlannerNode(Node):
         """
 
         connections = {(self._read_attr(r, "from_id"), self._read_attr(r, "to_id")) for r in self._read_query(query)}
+        typedb_connections = set(connections)
 
         waypoint_bin_association = self.query_waypoint_bin_association()
+        waypoint_bins = {
+            waypoint_id: bin_id
+            for bin_id, waypoint_ids in waypoint_bin_association.items()
+            for waypoint_id in waypoint_ids
+        }
 
         for waypoint_id in waypoint_bin_association.values():
             for from_id in waypoint_id:
                 for to_id in waypoint_id:
                     if from_id != to_id:
                         connections.add((from_id, to_id))
+
+        for from_id, to_id in typedb_connections:
+            from_bin = waypoint_bins.get(from_id)
+            to_bin = waypoint_bins.get(to_id)
+            if from_bin is None or to_bin is None or from_bin == to_bin:
+                continue
+            for bin_waypoint_id in waypoint_bin_association[to_bin]:
+                if bin_waypoint_id != from_id:
+                    connections.add((from_id, bin_waypoint_id))
 
         return sorted(connections)
     
@@ -388,6 +403,8 @@ class PddlPlannerNode(Node):
             (from_wp, to_wp)
             for from_wp, to_wp in connections
             if (self._to_readable_pddl_name(from_wp), self._to_readable_pddl_name(to_wp)) not in blocked_edges
+            and self._to_readable_pddl_name(from_wp) not in infeasible_waypoints
+            and self._to_readable_pddl_name(to_wp) not in infeasible_waypoints
         ]
         plants = self.query_plants_with_waypoints()
         pests = self.query_pests_with_waypoints()
