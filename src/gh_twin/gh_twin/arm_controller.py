@@ -32,7 +32,7 @@ class ArmController(Node):
     ACTION_NAME = "/mirte_master_arm_controller/follow_joint_trajectory"
 
     def __init__(self, config_file: str = None):
-        super().__init__("arm_controller_node")
+        super().__init__("arm_controller_node", use_global_arguments=False)
 
         self._poses: Dict[str, Dict] = {}
         self._joint_names: List[str] = []
