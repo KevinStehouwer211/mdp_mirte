@@ -12,13 +12,13 @@
      (pest-sprayed ?p - pest)
      
      (plant-at ?pl - plant ?wp - waypoint)
-     (plant-scanned ?pl - plant)
  
      (arm-base ?a - arm)
      (arm-scan ?a - arm)
      (arm-spray ?a - arm)
      (connected-wp ?from ?to - waypoint)
      (wp-visited ?wp - waypoint)
+     (wp-scanned ?wp - waypoint)
     )
     
     (:action move
@@ -27,14 +27,16 @@
         (robot-at ?r ?from)
         (connected-wp ?from ?to)
         (arm-base ?a)
+        (wp-scanned ?from)
       )
       :effect (and
         (not (robot-at ?r ?from))
         (robot-at ?r ?to)
         (wp-visited ?to)
+        (not (wp-scanned ?to))
       )
     )
-    
+
     (:durative-action spray
       :parameters (?r - robot ?p - pest ?wp - waypoint ?a - arm)
       :duration (= ?duration 3)
@@ -54,21 +56,19 @@
     )
     
     (:durative-action scan
-      :parameters (?r - robot ?pl - plant ?wp - waypoint ?a - arm)
-      :duration (=?duration 3)
+      :parameters (?r - robot ?wp - waypoint ?a - arm)
+      :duration (= ?duration 3)
       :condition (and
         (at start (robot-at ?r ?wp))
         (at start (arm-base ?a))
-        (at start (plant-at ?pl ?wp))
         (over all (robot-at ?r ?wp))
       )
       :effect (and
         (at start (not (arm-base ?a)))
         (at start (arm-scan ?a))
-        
         (at end (not (arm-scan ?a)))
         (at end (arm-base ?a))
-        (at end (plant-scanned ?pl))
+        (at end (wp-scanned ?wp))
       )
     )
 )
