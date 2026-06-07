@@ -163,6 +163,12 @@ class PlanExecutorNode(Node):
             self.abort_requested = True
             self.get_logger().info ("Manual mode; aborting current plan and task scheduler is on standby until mode change")
 
+        elif self.operating_mode == 2: #pause mission
+            self.return_to_recharge_after_abort = False
+            self.abort_requested = True
+            self.cancel_current_nav_goal()
+            self.get_logger().info("Mission paused; aborting current plan and pausing at current location")
+
         elif self.operating_mode == 3:  # return home / recharge
             self.get_logger().info("Return home mode; returning to home/recharge station")
             if self.plan_active or self.plan_thread_running():
@@ -171,6 +177,29 @@ class PlanExecutorNode(Node):
             else:
                 self.abort_requested = False
                 self.return_to_recharge()
+        
+        elif self.operating_mode == 4: # reset
+            self.abort_requested = True
+            self.return_to_recharge_after_abort = False
+            self.cancel_current_nav_goal()
+            self.visited_waypoints.clear()
+            self.scanned_waypoints.clear()
+            self.blocked_edges.clear()
+            self.infeasible_waypoints.clear()
+            self.waypoint_failure_counts.clear()
+            self.manual_location_update = False
+            self.update_current_location_to_typedb()
+            self.replace_current_arm_pose("base")
+            self.get_logger().info("Reset mode; planner state reset from current robot pose")
+
+        elif self.operating_mode == 5: #shutdown
+            self.abort_requested = True
+            self.return_to_recharge_after_abort = False
+            self.cancel_current_nav_goal()
+            self.robot_heartbeat = False
+            self.publish_robot_heartbeat()
+            self.get_logger().warn("Shutdown mode requested; stopping executor")
+            rclpy.shutdown()
 
         else:
             self.get_logger().info("Mode not implemented/known")
