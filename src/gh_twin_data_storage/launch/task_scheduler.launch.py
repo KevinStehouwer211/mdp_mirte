@@ -147,7 +147,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "recharge_waypoint",
-                default_value="wp0",
+                default_value="wp_0",
                 description="Waypoint used as the recharge location.",
             ),
             SetEnvironmentVariable("LD_LIBRARY_PATH", runtime_library_path),

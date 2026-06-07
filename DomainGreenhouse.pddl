@@ -33,7 +33,6 @@
         (not (robot-at ?r ?from))
         (robot-at ?r ?to)
         (wp-visited ?to)
-        (not (wp-scanned ?to))
       )
     )
 

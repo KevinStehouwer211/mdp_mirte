@@ -179,8 +179,6 @@ class PddlPlannerNode(Node):
             if len(waypoint_ids) > 1
         }
 
-
-
     def query_plants_with_waypoints(self):
         query = """
         match
@@ -245,22 +243,22 @@ class PddlPlannerNode(Node):
         self.get_logger().info(f'Loaded domain file: {self.domain_file}')
         self.get_logger().info(f'Loaded problem file: {self.problem_file}')
 
-    def replan(self, output_problem_file=None, planner_command=None):        
+    def replan(self, output_problem_file=None, blocked_edges=None, visited_waypoints=None, scanned_waypoints=None, infeasible_waypoints=None):
         problem_file = output_problem_file or self.problem_file
-        self.generate_pddl_problem(problem_file)
-        self.run_planner(domain_file=self.domain_file, problem_file=problem_file)
+        self.generate_pddl_problem(problem_file, 
+            blocked_edges=blocked_edges,
+            visited_waypoints=visited_waypoints,
+            scanned_waypoints=scanned_waypoints,
+            infeasible_waypoints=infeasible_waypoints,
+        )
         self.get_logger().info('Problem file updated for replanning')
+        return self.run_planner(domain_file=self.domain_file, problem_file=problem_file)
 
     def _to_readable_pddl_name(self, identifier) -> str:
         name = str(identifier).strip().lower().replace(' ', '_').replace('.', '_')
         if name[0].isdigit():
             name = "id_" + name
         return name
-
-    def _location_name(self, location: dict) -> str:
-        x = f'{location["x"]:.2f}'.replace('.', '_')
-        y = f'{location["y"]:.2f}'.replace('.', '_')
-        return f'loc-{x}-{y}'
 
     def _format_pddl_objects(self, robot_id, arm_id, waypoints, plants, pests):
         objects = [
@@ -289,12 +287,21 @@ class PddlPlannerNode(Node):
         
         return '\n    '.join(objects)
 
+    def _format_pddl_init(self, robot_id, arm_id, arm_state, current_wp, waypoints, connections, plants, pests, visited_waypoints=None, scanned_waypoints=None):
+        visited_waypoints = set(visited_waypoints or set())
+        scanned_waypoints = set(scanned_waypoints or set())
 
-    def _format_pddl_init(self, robot_id, arm_id, arm_state, current_wp, waypoints, connections, plants, pests):
         init = [
             f"    (robot-at {self._to_readable_pddl_name(robot_id)} {self._to_readable_pddl_name(current_wp)})"
         ]
-        init.append(f"    (wp-visited {self._to_readable_pddl_name(current_wp)})")
+        visited_waypoints.add(self._to_readable_pddl_name(current_wp))
+        scanned_waypoints.add(self._to_readable_pddl_name(current_wp))
+
+        for waypoint in sorted(visited_waypoints):
+            init.append(f"    (wp-visited {waypoint})")
+
+        for waypoint in sorted(scanned_waypoints):
+            init.append(f"    (wp-scanned {waypoint})")
 
         if arm_state == "base":
             init.append(f"    (arm-base {self._to_readable_pddl_name(self.arm_id)})")
@@ -312,8 +319,6 @@ class PddlPlannerNode(Node):
             plant_name = self._to_readable_pddl_name(plant["plant_id"])
             wp_name = self._to_readable_pddl_name(plant["wp_id"])
             init.append(f"    (plant-at {plant_name} {wp_name})")
-            if plant["scan_status"] == "scanned":
-                init.append(f"    (plant-scanned {plant_name})")
             #lines.append(f'; color={plant["color"]} height={plant["height"]:.2f} flower={plant["is_flower"]}')
 
         for pest in pests:
@@ -335,27 +340,37 @@ class PddlPlannerNode(Node):
             return '(:init)\n'
         return '\n    '.join(init)
     
-    def _format_pddl_goal(self, waypoints, plants, pests):        
+    def _format_pddl_goal(self, waypoints, plants, pests, visited_waypoints=None, scanned_waypoints=None, infeasible_waypoints=None):
+        visited_waypoints = set(visited_waypoints or set())
+        scanned_waypoints = set(scanned_waypoints or set())
+        infeasible_waypoints = set(infeasible_waypoints or set())
         goal = []
 
-        for plant in plants:
-            if plant["scan_status"] == "not-scanned":
-                goal.append(f"      (plant-scanned {self._to_readable_pddl_name(plant['plant_id'])})")
-
         for pest in pests:
-            if pest["spray_status"] == "not-sprayed":
+            pest_wp = self._to_readable_pddl_name(pest["wp_id"])
+            if pest["spray_status"] == "not-sprayed" and pest_wp not in infeasible_waypoints:
                 goal.append(f"      (pest-sprayed {self._to_readable_pddl_name(pest['pest_id'])})")
         
         for waypoint_id in waypoints:
-            goal.append(f"      (wp-visited {self._to_readable_pddl_name(waypoint_id)})")
+            waypoint_name = self._to_readable_pddl_name(waypoint_id)
+            if waypoint_name in infeasible_waypoints:
+                continue
+            if waypoint_name not in visited_waypoints:
+                goal.append(f"      (wp-visited {waypoint_name})")
+            if waypoint_name not in scanned_waypoints:
+                goal.append(f"      (wp-scanned {waypoint_name})")
 
         if not goal:
             goal.append("      ; no pending scan or spray goals")
         return '\n    '.join(goal)
 
 
-    def generate_pddl_problem(self, output_file="problem_generated.pddl"):
+    def generate_pddl_problem(self, output_file="problem_generated.pddl", blocked_edges=None, visited_waypoints=None, scanned_waypoints=None, infeasible_waypoints=None):
         self.get_logger().info(f"Generating PDDL problem: {output_file}")
+        blocked_edges = set(blocked_edges or set())
+        visited_waypoints = set(visited_waypoints or set())
+        scanned_waypoints = set(scanned_waypoints or set())
+        infeasible_waypoints = set(infeasible_waypoints or set())
 
         robot_arm = self.query_robot_arm_pair()
         robot_id = robot_arm["robot_id"]
@@ -363,15 +378,31 @@ class PddlPlannerNode(Node):
         arm_state = robot_arm["arm_state"]
 
         current_wp = self.query_current_robot_waypoint(robot_id)
+        current_wp_name = self._to_readable_pddl_name(current_wp)
+        visited_waypoints.add(current_wp_name)
+        scanned_waypoints.add(current_wp_name)
+
         waypoints = self.query_waypoints()
         connections = self.query_connections()
+        connections = [
+            (from_wp, to_wp)
+            for from_wp, to_wp in connections
+            if (self._to_readable_pddl_name(from_wp), self._to_readable_pddl_name(to_wp)) not in blocked_edges
+        ]
         plants = self.query_plants_with_waypoints()
         pests = self.query_pests_with_waypoints()
         #sensors = self.query_sensors_with_waypoints()
 
         objects = self._format_pddl_objects(robot_id, arm_id, waypoints, plants, pests)
-        init = self._format_pddl_init(robot_id, arm_id, arm_state, current_wp, waypoints, connections, plants, pests)
-        goal = self._format_pddl_goal(waypoints, plants, pests)
+        init = self._format_pddl_init(robot_id, arm_id, arm_state, current_wp, waypoints, connections, plants, pests, visited_waypoints=visited_waypoints, scanned_waypoints=scanned_waypoints)
+        goal = self._format_pddl_goal(
+            waypoints,
+            plants,
+            pests,
+            visited_waypoints=visited_waypoints,
+            scanned_waypoints=scanned_waypoints,
+            infeasible_waypoints=infeasible_waypoints,
+        )
 
         if not waypoints:
             raise RuntimeError("No waypoints found. Save waypoints or load demo data first.")
@@ -399,7 +430,7 @@ class PddlPlannerNode(Node):
             f.write(content)
 
         self.get_logger().info(f"Wrote {output_file}")
-        self.get_logger().info(f"Waypoints: {len(waypoints)}, connections: {len(connections)}, " f"plants: {len(plants)}, pests: {len(pests)}"        )
+        self.get_logger().info(f"Waypoints: {len(waypoints)}, connections: {len(connections)}, plants: {len(plants)}, pests: {len(pests)}")
 
     def run_planner(self, domain_file="DomainGreenhouse.pddl", problem_file="problem_generated.pddl"):
         self.get_logger().info("Running POPF planner...")
