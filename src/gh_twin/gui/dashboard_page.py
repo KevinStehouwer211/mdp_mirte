@@ -32,19 +32,20 @@ from lupin_greenhouse_msgs.msg import TagReading
 
 import random
 import math
+import json
 
 
 
 # Constants
-MAP_WIDTH_PX  = 266*2*2.7
+MAP_WIDTH_PX  = 266*2*2.85
 MAP_HEIGHT_PX = 600
 TIMEOUT_STATUS_OFFLINE = 5
 MAP_RESOLUTION = 98*0.04/MAP_HEIGHT_PX  # 1px/m
-map_origin_px = [920, MAP_HEIGHT_PX-30]
+map_origin_px = [MAP_WIDTH_PX, MAP_HEIGHT_PX-30]
 #map_origin_px = [0, 570]
 plant_data_file = 'plants.yaml'
 bug_data_file = 'bugs.yaml'
-
+sensor_data_file = 'sensortag_locations.json'
 
 CAMERA_TOPICS = {
     'None': None,
@@ -110,12 +111,12 @@ alert_msgs = []
 # ============================================================
 # STATIC DATA
 # ============================================================
-time_points = [
-    '10:00',
-    '10:05',
-    '10:10',
+# time_points = [
+#     '10:00',
+#     '10:05',
+#     '10:10',
 
-]
+# ]
 
 sensor_charts = []
 
@@ -124,10 +125,26 @@ plants = yaml.safe_load(open(plant_data_file, 'r'))
 
 bugs = yaml.safe_load(open(bug_data_file, 'r'))
 
-sensors = [
-    {'id': 'S1', 'x': 1070, 'y': 180, 'type': 'Humidity', 'data': [22,22.4,22.8] },
-    {'id': 'S2', 'x': 770, 'y': 120, 'type': 'Temperature', 'data': [24,24.5,25]},
-]
+with open("sensortag_locations.json", "r") as f:
+    sensor_data = json.load(f)
+    
+sensors_new = []
+
+for tag_id, info in sensor_data["tags"].items():
+    x = info["x"]
+    y = info["y"]
+    
+    x = x/MAP_RESOLUTION
+    y = MAP_WIDTH_PX - y/(266*0.04/MAP_WIDTH_PX) - 400
+    
+    sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [22,22.4,22.8], 'time': [0,1,2] }
+    
+    sensors_new.append(sensor_ind)
+
+# sensors = [
+#     {'id': 'S1', 'x': 1070, 'y': 180, 'type': 'Humidity', 'data': [22,22.4,22.8] },
+#     {'id': 'S2', 'x': 770, 'y': 120, 'type': 'Temperature', 'data': [24,24.5,25]},
+# ]
 
 SENSOR_MODES = [
     'soil_moisture',
@@ -145,26 +162,26 @@ def get_default_sensor_mode(sensor):
             return mode
     return None
 
-sensors_new = [
-    {
-        'id': 'S1',
-        'x': 1070, 'y': 180,
-        'humidity': [22,22.4,22.8],
-        'temperature': [24,24.5,25],
-        'co2': [400,410,420],
-        'light': [300,320,350],
-        'time': [0,1,2]
-    },
-    {
-        'id': 'S2',
-        'x': 770, 'y': 120,
-        'humidity': [22,22.4,22.8],
-        # 'temperature': [24,24.5,25],
-        'co2': [400,410,420],
-        'light': [300,320,350],
-        'time': [0,1,2]
-    }
-]
+# sensors_new = [
+#     {
+#         'id': 'S1',
+#         'x': 1070, 'y': 180,
+#         'humidity': [22,22.4,22.8],
+#         'temperature': [24,24.5,25],
+#         'co2': [400,410,420],
+#         'light': [300,320,350],
+#         'time': [0,1,2]
+#     },
+#     {
+#         'id': 'S2',
+#         'x': 770, 'y': 120,
+#         'humidity': [22,22.4,22.8],
+#         # 'temperature': [24,24.5,25],
+#         'co2': [400,410,420],
+#         'light': [300,320,350],
+#         'time': [0,1,2]
+#     }
+# ]
 
 bridge = CvBridge()
 
