@@ -17,6 +17,7 @@ from rclpy.clock import ClockType
 
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Twist
 from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import BatteryState
 
 from std_msgs.msg import Int32, Bool
 from cv_bridge import CvBridge
@@ -44,7 +45,7 @@ bug_data_file = 'bugs.yaml'
 
 CAMERA_TOPICS = {
     'None': None,
-    'Wrist Camera': '/wrist_camera/image_raw/compressed',
+    'Wrist Camera': '/gripper_camera/image_raw/compressed',
     'Front Camera': '/camera/color/image_raw/compressed'    
 }
 
@@ -181,7 +182,7 @@ class ROS2Interface(Node):
         
         # Subscriber for battery status
         self.battery_sub = self.create_subscription(
-            Int32,
+            BatteryState,
             battery_topic,
             self.battery_callback,
             10
@@ -274,7 +275,7 @@ class ROS2Interface(Node):
         
     def battery_callback(self, msg):
         global battery_level
-        battery_level = msg.data.percentage
+        battery_level = msg.percentage
         
     def flower_callback_gui(self, msg: Flower):
         """Update GUI plants list from flower messages."""
@@ -828,7 +829,7 @@ def main_page():
  
 
     def update_robot():
-        global robot_status, warning_msgs, alert_msgs
+        global robot_status, warning_msgs, alert_msgs, battery_level
     
         if robot_status == 1:
             robot_status_display.set_text('Status: Online')
