@@ -110,6 +110,19 @@ note: every new pixi session requires you to set the domain id.
 
 For the autonomous planning and executing of actions, the TypeDB knowledge base must be set up to store environment data, which PDDL can use for planning.
 
+First TypeDB must be installed with the following commands in a terminal:
+
+```shell
+sudo apt install software-properties-common apt-transport-https gpg
+gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-key 17507562824cfdcc
+gpg --export 17507562824cfdcc | sudo tee /etc/apt/trusted.gpg.d/typedb.gpg > /dev/null
+echo "deb https://repo.typedb.com/public/public-release/deb/ubuntu trusty main" | sudo tee /etc/apt/sources.list.d/typedb.list > /dev/null
+sudo apt update
+sudo apt install typedb=2.28.3
+```
+
+Note it is important to have TypeDB version 2.28.3.
+
 In a new terminal: 
 
 ```shell
@@ -154,7 +167,14 @@ NOTE: Everytime you make use of a function that uses TypeDB, you must be connect
 
 ## Running the planner
 
-The waypoints must be put in /gh_twin_data_storage/config/waypoint.yml
+POPF will be used as planner, therefore it must first be installed natively through:
+
+```shell
+sudo apt update
+sudo apt install ros-humble-popf
+```
+
+Then, the waypoints must be put in /gh_twin_data_storage/config/waypoint.yml
 
 With the "typedb server" open in one terminal, open a terminal to run the greenhouse simulation:
 
@@ -176,7 +196,7 @@ And the gui:
 cd src/gh_twin/gui/
 python3 main.py
 ```
-Then in the gui select "measurement mode", and the planner should start finsing a plan.
+Then in the gui select "measurement mode", and the planner should start a plan and finish it a plan.
 
 
 
