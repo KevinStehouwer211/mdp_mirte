@@ -378,7 +378,7 @@ class ROS2Interface(Node):
         sensor_id = f'S{raw_id}'
         
         # Convert ROS time stamp to a single float (seconds) for easier plotting
-        timestamp = msg.stamp.sec + (msg.stamp.nanosec * 1e-9)
+        timestamp = msg.sim_time_of_day_seconds
         
         # Find existing sensor entry
         existing = next((s for s in sensors_new if s['id'] == sensor_id), None)
