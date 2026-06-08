@@ -33,7 +33,7 @@ class TypeDBStorageNode(Node):
         self.pests = []
         self.sensors = []
         self.scan_counter = 0
-        self.detection_distance_threshold = 0.08 # m
+        self.detection_distance_threshold = 0.04 # m
 
         self.create_subscription(Flower, 'flower_data', self.flower_callback, 10)
         self.create_subscription(Pest, 'pest_data', self.pest_callback, 10)
