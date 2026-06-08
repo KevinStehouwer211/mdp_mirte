@@ -1,0 +1,15 @@
+- id: P1
+  x: 170
+  y: 105
+  bloomed: true
+  color: White
+- id: P2
+  x: 470
+  y: 485,
+  bloomed: true
+  color: Pink
+- id: P3
+  x: 900
+  y: 300
+  bloomed: true
+  color: white
