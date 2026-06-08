@@ -266,12 +266,12 @@ def load_styles():
     .map-panel {
         position: absolute;
         width: 76vw;
-        height: 43vh;
+        height: 49vh;
         /*background: rgba(255,255,255,0.5);*/
         background: transparent !important;
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
-        top: 20vh;
+        top: 12vh;
         left: 22vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
@@ -282,7 +282,7 @@ def load_styles():
         left: 0px;
         top: 0px;
         width: 76vw;
-        height: 43vh;
+        height: 49vh;
         border: 3px solid black;
         box-sizing: border-box;
         background: transparent !important;
