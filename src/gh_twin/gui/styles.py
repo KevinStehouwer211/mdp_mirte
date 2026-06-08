@@ -355,7 +355,7 @@ def load_styles():
     z-index: 50;
     }
 
-    .tooltip-js {
+    .tooltip {
         position: absolute;
         top: 20px;
         left: 50%;
@@ -372,7 +372,7 @@ def load_styles():
         pointer-events: auto;
         overflow: visible !important;
     }
-    .entity:hover .tooltip-js { display: block; }
+    .entity:hover .tooltip { display: block; }
 
     .tooltip-btn {
         width: 100%;

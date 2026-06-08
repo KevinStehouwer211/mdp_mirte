@@ -153,7 +153,7 @@ sensors_new = [
 bridge = CvBridge()
 
 # Whether robot is connected or not
-robot_status = 1
+robot_status = 0
 prev_robot_status = 0
 
 #########################################################################################
@@ -662,14 +662,13 @@ def main_page():
                     filename = plant['color'].lower() + '_flower.png'
                     animation_class = 'blooming' if plant['bloomed'] else ''
                 
-                # 1. Grab a reference to the container
-                with ui.element('div').style(
-                    f'position:absolute;'
-                    f'left:{plant["x"]}px;'
-                    f'top:{plant["y"]}px;'
-                    f'z-index:10;'
-                    f'overflow:visible !important; '
-                ).classes('entity') as entity_container:
+                    with ui.element('div').style(
+                        f'position:absolute;'
+                        f'left:{plant["x"]}px;'
+                        f'top:{plant["y"]}px;'
+                        f'z-index:10;'
+                        f'overflow:visible !important; '
+                    ).classes('entity'):
                      
                         ui.image(filename).style(
                             'width:20px;'
@@ -680,130 +679,16 @@ def main_page():
                             'overflow:visible !important;'
                         ).classes(animation_class)
                     
-                    # 2. Use tooltip-js and start hidden (display: none)
-                    tooltip_card = ui.element('div').classes('tooltip-js').style('display: none;').props('pointer-events-auto')
-                    
-                    with tooltip_card:
-                        ui.html(f'<b>Plant {pid}</b><br>Status: {status_text}')
-                        ui.html(f'Color: {plant["color"]}')
+                        with ui.element('div').classes('tooltip').props('pointer-events-auto'):
+                        
+                                ui.html(f'<b>Plant {pid}</b><br>Status: {status_text}')
+                                ui.html(f'Color: {plant["color"]}')
 
-                        ui.button(
-                            'Go To Position',
-                            on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
-                        ).classes('tooltip-btn')
+                                ui.button(
+                                    'Go To Position',
+                                    on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
+                                ).classes('tooltip-btn')
 
-                # 3. Wire up Python hover events (using default args to prevent loop closure bugs)
-                entity_container.on('mouseenter', lambda e, tc=tooltip_card: tc.style('display: block'))
-                entity_container.on('mouseleave', lambda e, tc=tooltip_card: tc.style('display: none'))
-
-
-            # ==========================================
-            # Plotting bugs
-            # ==========================================
-            for bug in bugs:
-                bid = bug['id']
-                
-                # 1. Grab a reference to the container
-                with ui.element('div').style(
-                    f'position:absolute;'
-                    f'left:{bug["x"]}px;'
-                    f'top:{bug["y"]}px;'
-                    f'z-index:10;'
-                    f'overflow:visible !important; '
-                ).classes('entity') as entity_container:
-
-                    ui.image('bug.png').style(
-                        'width:20px;'
-                        'height:20px;'
-                        'cursor:pointer;'
-                        'background: transparent;'
-                        'transition: transform 0.2s ease;'
-                        'overflow:visible !important;'
-                    )
-
-                    # 2. Use tooltip-js and start hidden (display: none)
-                    tooltip_card = ui.element('div').classes('tooltip-js').style('display: none;').props('pointer-events-auto')
-                    
-                    with tooltip_card:
-                        ui.html(f'<b>Bug {bid}</b>')
-                        ui.button(
-                            'Kill Bug',
-                            on_click=lambda b=bug: ros2_interface.go_to_pos(b['x'], b['y'])
-                        ).classes('tooltip-btn').props('no-caps unelevated')
-
-                # 3. Wire up Python hover events
-                entity_container.on('mouseenter', lambda e, tc=tooltip_card: tc.style('display: block'))
-                entity_container.on('mouseleave', lambda e, tc=tooltip_card: tc.style('display: none'))
-
-            # Plotting sensors
-            for sensor in sensors_new:
-                sid = sensor['id']
-                initial_metric = 'temperature'
-                
-                # --- STEP 1: Define a state dictionary to track this specific tooltip ---
-                state = {'is_dropdown_open': False}
-
-                with ui.element('div').style(
-                    f'position:absolute;'
-                    f'left:{sensor["x"]}px;'
-                    f'top:{sensor["y"]}px;'
-                    f'z-index:10;'
-                    f'overflow:visible !important;'
-                ).classes('entity'):
-
-                    ui.image('sensor.png').style(
-                        'width:20px;'
-                        'height:20px;'
-                        'cursor:pointer;'
-                        'background: transparent;'
-                        'transition: transform 0.2s ease;'
-                        'overflow:visible !important;'
-                    )
-
-                    # --- STEP 2: Bind visibility to NiceGUI's conditional styling instead of pure CSS ---
-                    tooltip_card = ui.element('div').classes('tooltip-js').style('display: none;').props('pointer-events-auto')
-                    
-                    with tooltip_card:
-                        with ui.card().style('width:320px; border-radius:20px; padding: 15px;'):
-                            
-                            with ui.row().classes('w-full justify-between items-center no-wrap q-mb-sm'):
-                                ui.label(f'Sensor {sid}').classes('text-bold text-lg')
-                                
-                                metric_selector = ui.select(
-                                    options={'temperature': 'Temp', 'humidity': 'Humid', 'co2': 'CO2', 'light': 'Light'},
-                                    value=initial_metric
-                                ).props('dense options-dense outlined').style('width: 110px;')
-
-                                # --- STEP 3: Listen to Quasar's popup open/close events (FIXED WITH DEFAULT ARGS) ---
-                                metric_selector.on('popup-show', lambda st=state: st.update({'is_dropdown_open': True}))
-                                metric_selector.on('popup-hide', lambda e, st=state, tc=tooltip_card: [
-                                    st.update({'is_dropdown_open': False}),
-                                    tc.style('display: none') 
-                                ])
-
-                            # The Chart
-                            chart = ui.echart({
-                                'backgroundColor': 'transparent',
-                                'animation': True,
-                                'tooltip': {'trigger': 'axis'},
-                                'xAxis': {'type': 'category', 'data': sensor.get('time', []), 'boundaryGap': False, 'name': 'Time'},
-                                'yAxis': {'type': 'value', 'name': initial_metric.capitalize()},
-                                'series': [{'data': sensor.get(initial_metric, []), 'type': 'line', 'smooth': True, 'areaStyle': {}}],
-                            }).style('height:220px; width: 100%;')
-                            
-                            # Chart update hook
-                            def make_update_handler(s=sensor, c=chart):
-                                return lambda e: [
-                                    c.options['series'][0].update({'data': s.get(e.value, [])}),
-                                    c.options['yAxis'].update({'name': e.value.capitalize()}),
-                                    c.update()
-                                ]
-                            metric_selector.on_value_change(make_update_handler())
-
-                        ui.button(
-                            'Take Reading',
-                            on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
-                        ).classes('tooltip-btn').props('no-caps unelevated')
             @ui.refreshable
             def draw_sensors():
             
@@ -905,6 +790,7 @@ def main_page():
             
             # Plotting bugs
             draw_bugs()
+
 
             
             # ------------------------------------------------
@@ -1013,10 +899,10 @@ def main_page():
             battery_progress_bar.set_value(battery_level)
             battery_label.set_text(f'{battery_level*100:.0f}%')
             
-            # if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
-            #     robot_status = 0
-            #     alert_msgs.append("Robot connection timed out")
-            #     warning_msgs.append("Robot connection lost")
+            if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
+                robot_status = 0
+                alert_msgs.append("Robot connection timed out")
+                warning_msgs.append("Robot connection lost")
             
         else:
             robot_status_display.set_text('Status: Offline')
