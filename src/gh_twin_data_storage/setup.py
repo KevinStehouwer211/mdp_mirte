@@ -11,8 +11,8 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + ros_package_name]),
         ('share/' + ros_package_name, ['package.xml']),
-        ('share/' + ros_package_name + '/launch',
-         glob('launch/*.launch.py')),
+        ('share/' + ros_package_name + '/launch', glob('launch/*.launch.py')),
+        ('share/' + ros_package_name + '/config', glob('config/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
