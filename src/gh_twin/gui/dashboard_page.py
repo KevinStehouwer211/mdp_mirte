@@ -40,7 +40,7 @@ TIMEOUT_STATUS_OFFLINE = 5
 CAMERA_TOPICS = [
     'None',
     '/camera/color/image_raw/compressed',
-    '/wrist_camera/image_raw/compressed',
+    '/gripper_camera/image_raw/compressed',
 ]
 
 robot_pose_topic = '/amcl_pose'
