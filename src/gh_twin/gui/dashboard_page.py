@@ -25,7 +25,7 @@ import cv2
 import base64
 
 from gh_twin_interfaces.msg import Flower, Pest, Sensor
-#from lupin_greenhouse_msgs.msg import TagReading
+from lupin_greenhouse_msgs.msg import TagReading
 
 import random
 import math
@@ -349,7 +349,7 @@ class ROS2Interface(Node):
             existing.update(sensor_entry)
         else:
             sensors.append(sensor_entry)
-    '''
+    
     def sensor_callback_gui_new(self, msg: TagReading):
         """Update GUI sensors list from sensor messages."""
         global sensors_new
@@ -396,7 +396,7 @@ class ROS2Interface(Node):
             if r.name in existing:
                 existing[r.name] = existing[r.name][-max_history:]
         
-    '''
+    
     
     def real_to_pixel_transform(self,x,y):
         return [(y/MAP_RESOLUTION) + map_origin_px[0], map_origin_px[1] - (x/MAP_RESOLUTION)]
