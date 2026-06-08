@@ -933,6 +933,6 @@ def main_page():
 
     ui.timer(0.1, update_robot)
     ui.timer(0.1, update_camera)
-    ui.timer(5.0, update_env_data)
+    ui.timer(10.0, update_env_data)
 
 
