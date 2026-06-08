@@ -21,7 +21,10 @@ from cv_bridge import CvBridge
 import cv2
 import base64
 
-from gh_twin_msgs.msg import Flower, Pest, Sensor
+try:
+    from gh_twin_interfaces.msg import Flower, Pest, Sensor
+except ModuleNotFoundError:
+    from gh_twin_msgs.msg import Flower, Pest, Sensor
 from lupin_greenhouse_msgs.msg import TagReading
 
 import random
@@ -250,7 +253,7 @@ class ROS2Interface(Node):
         )
 
     def heartbeat_callback(self, msg):
-        global robot_status, warning_msgs, alert_msgs, timeout_counter
+        global robot_status, prev_robot_status, warning_msgs, alert_msgs
         robot_status = 1 if msg.data else 0
         if robot_status == 0:
             if prev_robot_status == 1:
@@ -258,10 +261,10 @@ class ROS2Interface(Node):
                 warning_msgs.append("Robot connection lost")
                 prev_robot_status = 0
         else:
+            self.timeout_counter = self.get_time_now()
             if prev_robot_status == 0:
                 alert_msgs.append("Robot is online")
                 prev_robot_status = 1
-                self.timeout_counter = self.get_time_now()
         
     
     # Function to convert ROS2 pose to normalized % coordinates and store in shared dict
@@ -671,7 +674,7 @@ def main_page():
                     f'top:{plant["y"]}px;'
                     f'z-index:10;'
                     f'overflow:visible !important; '
-                ).classes('entity'):
+                ).classes('entity') as entity_container:
                      
                     ui.image(filename).style(
                         'width:20px;'
@@ -712,7 +715,7 @@ def main_page():
                     f'top:{bug["y"]}px;'
                     f'z-index:10;'
                     f'overflow:visible !important; '
-                ).classes('entity'):
+                ).classes('entity') as entity_container:
 
                     ui.image('bug.png').style(
                         'width:20px;'
@@ -969,5 +972,3 @@ def main_page():
     ui.timer(0.1, update_robot)
     ui.timer(0.1, update_camera)
     ui.timer(0.5, update_chart)
-
-
