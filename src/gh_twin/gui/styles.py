@@ -384,6 +384,15 @@ def load_styles():
         color: black;
         cursor: pointer;
     }
+                     
+    .sensor-tooltip {
+        pointer-events: auto !important;
+    }
+
+    .entity:hover .sensor-tooltip,
+    .sensor-tooltip:hover {
+        display: block !important;
+    }
 
     .coord-system {
         position: absolute;

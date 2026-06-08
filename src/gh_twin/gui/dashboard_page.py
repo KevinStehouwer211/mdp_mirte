@@ -129,6 +129,22 @@ sensors = [
     {'id': 'S2', 'x': 770, 'y': 120, 'type': 'Temperature', 'data': [24,24.5,25]},
 ]
 
+SENSOR_MODES = [
+    'soil_moisture',
+    'humidity',
+    'temperature',
+    'co2',
+    'light',
+]
+
+
+def get_default_sensor_mode(sensor):
+    """Return first available mode for this sensor."""
+    for mode in SENSOR_MODES:
+        if mode in sensor and len(sensor[mode]) > 0:
+            return mode
+    return None
+
 sensors_new = [
     {
         'id': 'S1',
@@ -691,9 +707,16 @@ def main_page():
 
             @ui.refreshable
             def draw_sensors():
-            
-                for sensor in sensors:
+
+                for sensor in sensors_new:
+
                     sid = sensor['id']
+
+                    default_mode = get_default_sensor_mode(sensor)
+
+                    if default_mode is None:
+                        continue
+
                     with ui.element('div').style(
                         f'position:absolute;'
                         f'left:{sensor["x"]}px;'
@@ -701,39 +724,108 @@ def main_page():
                         f'z-index:10;'
                         f'overflow:visible !important;'
                     ).classes('entity'):
+
+                        # ui.image('sensor.png').style(
+                        #     'width:20px;'
+                        #     'height:20px;'
+                        #     'cursor:pointer;'
+                        #     'background: transparent;'
+                        #     'transition: transform 0.2s ease;'
+                        #     'overflow:visible !important;'
+                        # )
+
+                        # with ui.element('div').classes('tooltip').props('pointer-events-auto'):
+                        # Dialog for this sensor
+                        with ui.dialog() as sensor_dialog, ui.card().style(
+                            'width:500px; max-width:90vw;'
+                        ):
+
+                            ui.row().classes('w-full justify-between items-center')
+
+                            ui.label(f'Sensor {sid}').classes('text-lg font-bold')
+
+                            ui.button(
+                                icon='close',
+                                on_click=sensor_dialog.close
+                            ).props('flat round')
+
+                            available_modes = [
+                                mode
+                                for mode in SENSOR_MODES
+                                if mode in sensor and len(sensor[mode]) > 0
+                            ]
+
+                            default_mode = available_modes[0]
+
+                            mode_selector = ui.select(
+                                options=available_modes,
+                                value=default_mode,
+                                label='Sensor Mode',
+                            ).classes('w-full')
+
+                            chart = ui.echart({
+                                'backgroundColor': 'transparent',
+                                'animation': True,
+                                'tooltip': {'trigger': 'axis'},
+                                'xAxis': {
+                                    'type': 'category',
+                                    'data': sensor['time'],
+                                    'boundaryGap': False,
+                                },
+                                'yAxis': {
+                                    'type': 'value',
+                                    'name': default_mode,
+                                },
+                                'series': [{
+                                    'data': sensor[default_mode],
+                                    'type': 'line',
+                                    'smooth': True,
+                                    'areaStyle': {},
+                                }],
+                            }).style('height:350px')
+
+                            ui.separator()
+
+                            ui.button(
+                                'Take Reading',
+                                on_click=lambda s=sensor: ros2_interface.go_to_pos(
+                                    s['x'],
+                                    s['y'],
+                                ),
+                            ).classes('w-full').props(
+                                'no-caps unelevated'
+                            )
+
+                            def mode_changed(chart=chart, sensor=sensor, selector=mode_selector):
+
+                                mode = selector.value
+
+                                chart.options['xAxis']['data'] = sensor['time']
+                                chart.options['series'][0]['data'] = sensor[mode]
+                                chart.options['yAxis']['name'] = mode
+
+                                chart.update()
+
+                            mode_selector.on(
+                                'update:model-value',
+                                lambda _: mode_changed()
+                            )
+
+                            sensor_charts.append({
+                                'chart': chart,
+                                'sensor': sensor,
+                                'mode_selector': mode_selector,
+                            })
+
+                        # sensor icon
                         ui.image('sensor.png').style(
                             'width:20px;'
                             'height:20px;'
                             'cursor:pointer;'
-                            'background: transparent;'
-                            'transition: transform 0.2s ease;'
-                            'overflow:visible !important;'
+                        ).on(
+                            'click',
+                            lambda d=sensor_dialog: d.open()
                         )
-                        with ui.element('div').classes('tooltip').props('pointer-events-auto'):
-                            
-                            with ui.card().style('width:300px; border-radius:20px;'):
-
-                                chart = ui.echart({
-                                    'backgroundColor': 'transparent',
-                                    'animation': True,
-                                    'tooltip': {'trigger': 'axis'},
-                                    'xAxis': {'type': 'category','data': time_points,'boundaryGap': False,},
-                                    'yAxis': {'type': 'value','name': 'units',},
-                                    'series': [
-                                        {'data': sensor["data"], 'type': 'line', 'smooth': True, 'areaStyle': {},}
-                                    ],
-                                }).style(
-                                'height:300px'
-                                )
-                            sensor_charts.append({
-                                'chart': chart,
-                                'data': sensor["data"],
-                            })
-                        
-                            ui.button(
-                                'Take Reading',
-                                on_click=lambda s=sensor: ros2_interface.go_to_pos(s['x'], s['y'])
-                            ).classes('tooltip-btn').props('no-caps unelevated')
 
             @ui.refreshable
             def draw_bugs():
@@ -947,16 +1039,32 @@ def main_page():
             
             draw_sensors.refresh()
 
+            # for item in sensor_charts:
+
+            #     data = item['data']
+            #     chart = item['chart']
+
+            #     data.append(round(data[-1] + random.uniform(-0.5, 0.5),2))
+
+            #     data.pop(0)
+
+            #     chart.options['series'][0]['data'] = data
+
+            #     chart.update()
+
             for item in sensor_charts:
 
-                data = item['data']
                 chart = item['chart']
+                sensor = item['sensor']
+                selector = item['mode_selector']
 
-                data.append(round(data[-1] + random.uniform(-0.5, 0.5),2))
+                mode = selector.value
 
-                data.pop(0)
+                if mode not in sensor:
+                    continue
 
-                chart.options['series'][0]['data'] = data
+                chart.options['xAxis']['data'] = sensor['time']
+                chart.options['series'][0]['data'] = sensor[mode]
 
                 chart.update()
             
