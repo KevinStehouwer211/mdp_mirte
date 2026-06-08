@@ -67,7 +67,7 @@ OPERATING_MODE = {
     5: 'Shutdown',
 }
 
-teleop_topic = '/mirte_base_controller/cmd_vel_unstamped'
+teleop_topic = '/mirte_base_controller/cmd_vel'
 
 ######################################################################################
 
