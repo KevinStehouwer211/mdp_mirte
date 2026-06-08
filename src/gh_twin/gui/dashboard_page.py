@@ -50,7 +50,7 @@ CAMERA_TOPICS = {
 
 robot_pose_topic = '/amcl_pose'
 
-battery_topic = '/io/power_analyser/power'
+battery_topic = '/io/power/power_watcher'
 
 robot_goal_pos_topic = '/goal_pose'
 
@@ -274,7 +274,7 @@ class ROS2Interface(Node):
         
     def battery_callback(self, msg):
         global battery_level
-        battery_level = msg.data
+        battery_level = msg.data.percentage
         
     def flower_callback_gui(self, msg: Flower):
         """Update GUI plants list from flower messages."""
@@ -857,7 +857,7 @@ def main_page():
             camera_dropdown.enable()
             save_button.enable()
             
-            battery_level = 0.5  # Placeholder until we get real data from ROS2
+            #battery_level = 0.5  # Placeholder until we get real data from ROS2
             
             if battery_level < 0.2:
                 battery_progress_bar.props('color=red')
