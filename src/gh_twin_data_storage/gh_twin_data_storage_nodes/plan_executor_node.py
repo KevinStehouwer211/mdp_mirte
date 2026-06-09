@@ -492,8 +492,10 @@ class PlanExecutorNode(Node):
 
     def get_navigator(self) -> NavToPose:
         if self.navigator is None:
+            initial_pose = Pose()
+            initial_pose.orientation.w = 1.0
             self.get_logger().info("Initializing navigation subsystem")
-            self.navigator = NavToPose()
+            self.navigator = NavToPose(initial_pose)
         return self.navigator
 
     def query_waypoint_pose(self, waypoint_pddl_name: str) -> Dict[str, float]:
