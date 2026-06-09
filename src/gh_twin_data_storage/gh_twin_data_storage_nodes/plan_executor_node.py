@@ -150,7 +150,15 @@ class PlanExecutorNode(Node):
                 self.abort_requested = False
                 self.return_to_recharge_after_abort = False
                 if self.manual_location_update:
-                    self.update_current_location_to_typedb()
+                    try:
+                        self.update_current_location_to_typedb()
+                    except RuntimeError as exception:
+                        # Localization not ready (no amcl_pose). Stay on standby so
+                        # the operator can set a 2D Pose Estimate and retry, rather
+                        # than starting a run mis-localized or crashing the node.
+                        self.get_logger().error(
+                            f"Cannot start data collection: {exception} Staying on standby.")
+                        return
                 self.manual_location_update = False
                 self.start_plan_thread()
                 self.get_logger().info("Data collection mode; executing current plan")
@@ -188,7 +196,12 @@ class PlanExecutorNode(Node):
             self.infeasible_waypoints.clear()
             self.waypoint_failure_counts.clear()
             self.manual_location_update = False
-            self.update_current_location_to_typedb()
+            try:
+                self.update_current_location_to_typedb()
+            except RuntimeError as exception:
+                self.get_logger().error(
+                    f"Cannot reset planner state: {exception} Set a 2D Pose Estimate and retry.")
+                return
             self.replace_current_arm_pose("base")
             self.get_logger().info("Reset mode; planner state reset from current robot pose")
 
@@ -212,12 +225,18 @@ class PlanExecutorNode(Node):
             self.pddl_manager.connect_to_typedb()
 
         navigator = self.get_navigator()
-        for _ in range(10):
-            rclpy.spin_once(navigator, timeout_sec=0.1)
-
+        # Wait for a real localization (amcl_pose) before reading the pose, so we
+        # never create a start waypoint at the default (0,0) origin / in a wall.
         nav_ready, pose = navigator.nav_get_current_pose()
+        for _ in range(50):                          # up to ~5 s
+            if nav_ready and pose is not None:
+                break
+            rclpy.spin_once(navigator, timeout_sec=0.1)
+            nav_ready, pose = navigator.nav_get_current_pose()
         if not nav_ready or pose is None:
-            raise RuntimeError("Unable to read current robot pose.")
+            raise RuntimeError(
+                "Unable to read current robot pose: no amcl_pose received. Set a "
+                "2D Pose Estimate in RViz (away from walls) before starting a run.")
         if not hasattr(pose, "position"):
             pose = pose.pose.pose
 
@@ -276,9 +295,9 @@ class PlanExecutorNode(Node):
           $start isa waypoint,
             has id "{waypoint_id}",
             has bin-id "manual-start",
-            has x {float(pose.position.x)},
-            has y {float(pose.position.y)},
-            has yaw {yaw},
+            has x {float(pose.position.x):.6f},
+            has y {float(pose.position.y):.6f},
+            has yaw {yaw:.6f},
             has pose-source "manual-localization";
           $edge_first (from: $start, to: $first) isa path-connection,
             has id "{waypoint_id}-to-{closest_first_id}";

@@ -51,3 +51,9 @@ repositories:
     type: git
     url: git@gitlab.tudelft.nl:cor/ro47007/2026/group_17/lupin-greenhouse-ros-group-17.git
     version: main
+
+  # POPF PDDL planner (source of the ros-humble-popf package), built from source
+  popf:
+    type: git
+    url: https://github.com/fmrico/popf.git
+    version: humble-devel

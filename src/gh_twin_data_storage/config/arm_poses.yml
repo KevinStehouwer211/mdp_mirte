@@ -21,7 +21,7 @@ poses:
     duration_sec: 1.5
 
   scan:
-    positions: [-90.0, 65.0, -100.0, 70.0]
+    positions: [-80.9, 3.0, -31.0, 90.0]
     duration_sec: 1.5
 
   spray:

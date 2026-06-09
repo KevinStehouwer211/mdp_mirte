@@ -25,6 +25,15 @@ colcon-common-extensions = "*"
 #cmake = "<4"
 python = "3.12.*"
 
+# POPF planner build deps (parser + COIN-OR solvers), see src/popf
+flex = "*"
+bison = "*"
+coin-or-clp = "*"
+coin-or-cbc = "*"
+coin-or-cgl = "*"
+coin-or-utils = "*"
+coin-or-osi = "*"
+
 # Workspace dependencies
 ros-humble-ament-cmake = "*"
 ros-humble-ament-cmake-auto = "*"
@@ -113,7 +122,7 @@ ros-humble-camera-calibration = ">=3.0.9,<4"
 
 
 [activation]
-scripts = ["install/setup.bash"]
+scripts = ["install/setup.bash", "tools/popf_env.sh"]
 
 [pypi-dependencies]
 vcstool = ">=0.3.0, <0.4"
