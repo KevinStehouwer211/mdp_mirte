@@ -23,7 +23,7 @@ class ExitCode(enum.IntEnum):
 
 # Navigation interface class for sending navigation goals and tracking their status
 class NavToPose(Node):
-    def __init__(self, pose: Pose):
+    def __init__(self, pose: Pose = None):
         super().__init__('nav2_interface_node')
 
         #Initialize the navigator object
@@ -42,11 +42,11 @@ class NavToPose(Node):
         # AMCL pose estimation
         self.subscription = self.create_subscription(PoseWithCovarianceStamped,'amcl_pose',self.current_pose_callback,10)
 
-        # Set initial pose of the robot in the navigator object
         self.initial_pose.header.frame_id = 'map'
         self.initial_pose.header.stamp = self.navigator.get_clock().now().to_msg()
-        self.initial_pose.pose = pose
-        self.navigator.setInitialPose(self.initial_pose)
+        if pose is not None:
+            self.initial_pose.pose = pose
+            self.navigator.setInitialPose(self.initial_pose)
 
         # Wait for navigation to fully activate, since autostarting nav2
         self.navigator.waitUntilNav2Active()
