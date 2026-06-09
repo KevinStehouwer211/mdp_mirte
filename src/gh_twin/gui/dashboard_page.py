@@ -107,6 +107,7 @@ heartbeat_topic = '/robot_heartbeat'
 
 warning_msgs = []
 alert_msgs = []
+active_tab = 'Flowers'
 
 # ============================================================
 # STATIC DATA
@@ -619,7 +620,7 @@ def main_page():
                 
                 ros2_interface.switch_topic(CAMERA_TOPICS[camera])
                 current_topic.set_text(camera)
-                add_log_entry(warnings_scroll, f'Switched to {camera})', "text-amber-600")
+                add_log_entry(alerts_scroll, f'Switched to {camera}', "text-amber-600")
                 #ui.notify(f'Switched to {topic}')
                 
             camera_dropdown = ui.dropdown_button('Select Camera', auto_close=True).props('no-caps')
@@ -688,7 +689,6 @@ def main_page():
         with greenhouse:
             
             
-            @ui.refreshable
             def draw_plants():
                 
                 # Plotting plants
@@ -725,7 +725,6 @@ def main_page():
                                     on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
                                 ).classes('tooltip-btn')
 
-            @ui.refreshable
             def draw_sensors():
 
                 for sensor in sensors_new:
@@ -847,7 +846,6 @@ def main_page():
                             lambda d=sensor_dialog: d.open()
                         )
 
-            @ui.refreshable
             def draw_bugs():
                 for bug in bugs:
                     bid = bug['id']
@@ -875,7 +873,35 @@ def main_page():
                                 on_click=lambda b=bug: ros2_interface.go_to_pos(b['x'], b['y'])
                             ).classes('tooltip-btn').props('no-caps unelevated')
 
+            @ui.refreshable
+            def draw_content_area():
+                global active_tab
+
+            # This container wraps your changing data
+                with ui.element('div').classes('map-panel'):
+                    if active_tab == 'Flowers':
+                        # Call your original flower plotting logic here
+                        draw_plants()
+                        #add_log_entry(alerts_scroll, f'Updated flower plots', "text-amber-600")
+                        #ui.notify("Updated flower plots")
+                        # e.g., draw_plants() 
+            
+                    elif active_tab == 'Pests':
+                        draw_bugs()
+                        #add_log_entry(alerts_scroll, f'Updated pests plots', "text-amber-600")
+                        #ui.notify("Updated pests plots")
+            
+                    elif active_tab == 'Sensors':
+                        draw_sensors()
+                        #add_log_entry(alerts_scroll, f'Updated sensor plots', "text-amber-600")
+                        #ui.notify("Updated sensor plots")
+                        
             ui.element('div').classes('greenhouse-border')
+            
+            def set_active_tab(tab):
+                global active_tab
+                active_tab = tab
+                draw_content_area.refresh()
 
             #ui.html('<div class="home-station">Home</div>')
 
@@ -896,12 +922,14 @@ def main_page():
                 }
             ''')
             
-            draw_plants()
+            draw_content_area()
             
-            draw_sensors()
+            #draw_plants()
+            
+            #draw_sensors()
             
             # Plotting bugs
-            draw_bugs()
+            #draw_bugs()
 
 
             
@@ -952,22 +980,21 @@ def main_page():
             </div>
             ''')
 
-        with ui.row().classes('w-full gap-4 q-mt-md justify-between ').style('max-width: 100%; margin-left: 22vw;'):
+        with ui.row().classes('w-full items-center gap-4'):
+            ui.button(
+                'Display Flowers',
+                on_click=lambda: set_active_tab('Flowers')
+            ).props('no-caps unelevated').classes('flower-tab')
 
             ui.button(
-                'Flowers',
-                on_click=lambda: draw_plants.refresh()
-            ).props('no-caps unelevated').classes('data-tab')
+                'Display Pests',
+                on_click=lambda: set_active_tab('Pests')
+            ).props('no-caps unelevated').classes('bug-tab')
 
             ui.button(
-                'Pests',
-                on_click=lambda: draw_bugs.refresh()
-            ).props('no-caps unelevated').classes('flex-grow').style('height: 45px;')
-
-            ui.button(
-                'Sensors',
-                on_click=lambda: draw_sensors.refresh()
-            ).props('no-caps unelevated').classes('flex-grow').style('height: 45px;')
+                'Display Sensors',
+                on_click=lambda: set_active_tab('Sensors')
+            ).props('no-caps unelevated').classes('sensor-tab')
         
         # Assuming your main map element is right above this container...
         with ui.row().classes('w-full no-wrap gap-4 mt-4'):
@@ -1068,14 +1095,11 @@ def main_page():
             
     # Update sensor charts with new random data for demonstration
     def update_env_data():
+        global active_tab
 
         if robot_status:
             
-            draw_plants.refresh()
-            
-            draw_bugs.refresh()
-            
-            draw_sensors.refresh()
+            draw_content_area.refresh()
 
             # for item in sensor_charts:
 
