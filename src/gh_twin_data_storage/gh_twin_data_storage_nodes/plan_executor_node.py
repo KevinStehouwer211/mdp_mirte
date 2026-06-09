@@ -395,7 +395,7 @@ class PlanExecutorNode(Node):
             elif action["name"] in {"start-scan", "end-scan"}:
                 self.execute_arm_action(action)
             elif action["name"] == "move-while-scan":
-                self.execute_move_while_scan(action)
+                self.execute_move(action)
             else:
                 self.get_logger().warn(f"Skipping unsupported PDDL action: {action['raw']}")
 
