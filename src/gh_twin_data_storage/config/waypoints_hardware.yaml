@@ -1,600 +1,240 @@
 - id: wp_0
   bin_id: bin_0
-  x: 2.36
-  y: -3.93
+  x: 1.2
+  y: -3.19
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_1
   bin_id: bin_0
-  x: 2.17
-  y: -3.93
+  x: 2.76
+  y: -3.19
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_2
   bin_id: bin_0
-  x: 1.98
+  x: 1.2
   y: -3.93
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_3
   bin_id: bin_0
-  x: 1.79
+  x: 2.76
   y: -3.93
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_4
-  bin_id: bin_0
-  x: 1.6
-  y: -3.93
+  bin_id: bin_1
+  x: 1.16
+  y: -2.07
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_5
-  bin_id: bin_0
-  x: 2.36
-  y: -3.19
+  bin_id: bin_1
+  x: 2.72
+  y: -2.07
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_6
-  bin_id: bin_0
-  x: 2.17
-  y: -3.19
+  bin_id: bin_1
+  x: 1.16
+  y: -2.81
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_7
-  bin_id: bin_0
-  x: 1.98
-  y: -3.19
+  bin_id: bin_1
+  x: 2.72
+  y: -2.81
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_8
-  bin_id: bin_0
-  x: 1.79
-  y: -3.19
+  bin_id: bin_2
+  x: 1.16
+  y: -1.19
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_9
-  bin_id: bin_0
-  x: 1.6
-  y: -3.19
+  bin_id: bin_2
+  x: 2.68
+  y: -1.19
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_10
-  bin_id: bin_1
-  x: 2.32
-  y: -2.81
+  bin_id: bin_2
+  x: 1.16
+  y: -1.97
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_11
-  bin_id: bin_1
-  x: 2.13
-  y: -2.81
+  bin_id: bin_2
+  x: 2.68
+  y: -1.97
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_12
-  bin_id: bin_1
-  x: 1.94
-  y: -2.81
+  bin_id: bin_3
+  x: 2.81
+  y: 0.64
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_13
-  bin_id: bin_1
-  x: 1.75
-  y: -2.81
+  bin_id: bin_3
+  x: 2.81
+  y: -0.88
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_14
-  bin_id: bin_1
-  x: 1.56
-  y: -2.81
+  bin_id: bin_3
+  x: 2.07
+  y: 0.64
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_15
-  bin_id: bin_1
-  x: 2.32
-  y: -2.07
+  bin_id: bin_3
+  x: 2.07
+  y: -0.88
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_16
-  bin_id: bin_1
-  x: 2.13
-  y: -2.07
+  bin_id: bin_4
+  x: 1.81
+  y: 0.64
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_17
-  bin_id: bin_1
-  x: 1.94
-  y: -2.07
+  bin_id: bin_4
+  x: 1.81
+  y: -0.88
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_18
-  bin_id: bin_1
-  x: 1.75
-  y: -2.07
+  bin_id: bin_4
+  x: 1.07
+  y: 0.64
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_19
-  bin_id: bin_1
-  x: 1.56
-  y: -2.07
+  bin_id: bin_4
+  x: 1.07
+  y: -0.88
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_20
-  bin_id: bin_2
-  x: 2.28
-  y: -1.97
+  bin_id: bin_5
+  x: 1.73
+  y: 2.2
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_21
-  bin_id: bin_2
-  x: 2.1
-  y: -1.97
+  bin_id: bin_5
+  x: 1.73
+  y: 0.72
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_22
-  bin_id: bin_2
-  x: 1.92
-  y: -1.97
+  bin_id: bin_5
+  x: 0.99
+  y: 2.2
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_23
-  bin_id: bin_2
-  x: 1.74
-  y: -1.97
+  bin_id: bin_5
+  x: 0.99
+  y: 0.72
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_24
-  bin_id: bin_2
-  x: 1.56
-  y: -1.97
+  bin_id: bin_6
+  x: 2.77
+  y: 2.36
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_25
-  bin_id: bin_2
-  x: 2.28
-  y: -1.19
+  bin_id: bin_6
+  x: 2.77
+  y: 0.84
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_26
-  bin_id: bin_2
-  x: 2.1
-  y: -1.19
+  bin_id: bin_6
+  x: 1.99
+  y: 2.36
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_27
-  bin_id: bin_2
-  x: 1.92
-  y: -1.19
+  bin_id: bin_6
+  x: 1.99
+  y: 0.84
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_28
-  bin_id: bin_2
-  x: 1.74
-  y: -1.19
+  bin_id: bin_7
+  x: 0.96
+  y: 3.37
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_29
-  bin_id: bin_2
-  x: 1.56
-  y: -1.19
+  bin_id: bin_7
+  x: 2.48
+  y: 3.37
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_30
-  bin_id: bin_3
-  x: 2.07
-  y: -0.48
+  bin_id: bin_7
+  x: 0.96
+  y: 2.59
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_31
-  bin_id: bin_3
-  x: 2.07
-  y: -0.3
+  bin_id: bin_7
+  x: 2.48
+  y: 2.59
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_32
-  bin_id: bin_3
-  x: 2.07
-  y: -0.12
+  bin_id: bin_8
+  x: 0.96
+  y: 4.37
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_33
-  bin_id: bin_3
-  x: 2.07
-  y: 0.06
+  bin_id: bin_8
+  x: 2.44
+  y: 4.37
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_34
-  bin_id: bin_3
-  x: 2.07
-  y: 0.24
+  bin_id: bin_8
+  x: 0.96
+  y: 3.59
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_35
-  bin_id: bin_3
-  x: 2.81
-  y: -0.48
+  bin_id: bin_8
+  x: 2.44
+  y: 3.59
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_36
-  bin_id: bin_3
-  x: 2.81
-  y: -0.3
+  bin_id: bin_9
+  x: 0.96
+  y: 5.25
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_37
-  bin_id: bin_3
-  x: 2.81
-  y: -0.12
+  bin_id: bin_9
+  x: 2.4
+  y: 5.25
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_38
-  bin_id: bin_3
-  x: 2.81
-  y: 0.06
+  bin_id: bin_9
+  x: 0.96
+  y: 4.51
   yaw: 0.0
   pose_source: manual_slam
 - id: wp_39
-  bin_id: bin_3
-  x: 2.81
-  y: 0.24
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_40
-  bin_id: bin_4
-  x: 1.07
-  y: -0.48
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_41
-  bin_id: bin_4
-  x: 1.07
-  y: -0.3
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_42
-  bin_id: bin_4
-  x: 1.07
-  y: -0.12
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_43
-  bin_id: bin_4
-  x: 1.07
-  y: 0.06
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_44
-  bin_id: bin_4
-  x: 1.07
-  y: 0.24
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_45
-  bin_id: bin_4
-  x: 1.81
-  y: -0.48
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_46
-  bin_id: bin_4
-  x: 1.81
-  y: -0.3
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_47
-  bin_id: bin_4
-  x: 1.81
-  y: -0.12
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_48
-  bin_id: bin_4
-  x: 1.81
-  y: 0.06
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_49
-  bin_id: bin_4
-  x: 1.81
-  y: 0.24
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_50
-  bin_id: bin_5
-  x: 0.99
-  y: 1.12
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_51
-  bin_id: bin_5
-  x: 0.99
-  y: 1.29
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_52
-  bin_id: bin_5
-  x: 0.99
-  y: 1.46
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_53
-  bin_id: bin_5
-  x: 0.99
-  y: 1.63
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_54
-  bin_id: bin_5
-  x: 0.99
-  y: 1.8
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_55
-  bin_id: bin_5
-  x: 1.73
-  y: 1.12
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_56
-  bin_id: bin_5
-  x: 1.73
-  y: 1.29
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_57
-  bin_id: bin_5
-  x: 1.73
-  y: 1.46
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_58
-  bin_id: bin_5
-  x: 1.73
-  y: 1.63
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_59
-  bin_id: bin_5
-  x: 1.73
-  y: 1.8
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_60
-  bin_id: bin_6
-  x: 1.99
-  y: 1.24
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_61
-  bin_id: bin_6
-  x: 1.99
-  y: 1.42
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_62
-  bin_id: bin_6
-  x: 1.99
-  y: 1.6
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_63
-  bin_id: bin_6
-  x: 1.99
-  y: 1.78
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_64
-  bin_id: bin_6
-  x: 1.99
-  y: 1.96
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_65
-  bin_id: bin_6
-  x: 2.77
-  y: 1.24
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_66
-  bin_id: bin_6
-  x: 2.77
-  y: 1.42
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_67
-  bin_id: bin_6
-  x: 2.77
-  y: 1.6
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_68
-  bin_id: bin_6
-  x: 2.77
-  y: 1.78
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_69
-  bin_id: bin_6
-  x: 2.77
-  y: 1.96
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_70
-  bin_id: bin_7
-  x: 2.08
-  y: 2.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_71
-  bin_id: bin_7
-  x: 1.9
-  y: 2.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_72
-  bin_id: bin_7
-  x: 1.72
-  y: 2.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_73
-  bin_id: bin_7
-  x: 1.54
-  y: 2.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_74
-  bin_id: bin_7
-  x: 1.36
-  y: 2.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_75
-  bin_id: bin_7
-  x: 2.08
-  y: 3.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_76
-  bin_id: bin_7
-  x: 1.9
-  y: 3.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_77
-  bin_id: bin_7
-  x: 1.72
-  y: 3.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_78
-  bin_id: bin_7
-  x: 1.54
-  y: 3.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_79
-  bin_id: bin_7
-  x: 1.36
-  y: 3.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_80
-  bin_id: bin_8
-  x: 2.04
-  y: 3.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_81
-  bin_id: bin_8
-  x: 1.87
-  y: 3.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_82
-  bin_id: bin_8
-  x: 1.7
-  y: 3.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_83
-  bin_id: bin_8
-  x: 1.53
-  y: 3.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_84
-  bin_id: bin_8
-  x: 1.36
-  y: 3.59
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_85
-  bin_id: bin_8
-  x: 2.04
-  y: 4.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_86
-  bin_id: bin_8
-  x: 1.87
-  y: 4.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_87
-  bin_id: bin_8
-  x: 1.7
-  y: 4.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_88
-  bin_id: bin_8
-  x: 1.53
-  y: 4.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_89
-  bin_id: bin_8
-  x: 1.36
-  y: 4.37
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_90
   bin_id: bin_9
-  x: 2.0
+  x: 2.4
   y: 4.51
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_91
-  bin_id: bin_9
-  x: 1.84
-  y: 4.51
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_92
-  bin_id: bin_9
-  x: 1.68
-  y: 4.51
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_93
-  bin_id: bin_9
-  x: 1.52
-  y: 4.51
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_94
-  bin_id: bin_9
-  x: 1.36
-  y: 4.51
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_95
-  bin_id: bin_9
-  x: 2.0
-  y: 5.25
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_96
-  bin_id: bin_9
-  x: 1.84
-  y: 5.25
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_97
-  bin_id: bin_9
-  x: 1.68
-  y: 5.25
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_98
-  bin_id: bin_9
-  x: 1.52
-  y: 5.25
-  yaw: 0.0
-  pose_source: manual_slam
-- id: wp_99
-  bin_id: bin_9
-  x: 1.36
-  y: 5.25
   yaw: 0.0
   pose_source: manual_slam
