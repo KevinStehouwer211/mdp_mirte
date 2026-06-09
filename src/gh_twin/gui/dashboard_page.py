@@ -41,7 +41,7 @@ MAP_WIDTH_PX  = 266*2*2.85
 MAP_HEIGHT_PX = 600
 TIMEOUT_STATUS_OFFLINE = 5
 MAP_RESOLUTION = 98*0.04/MAP_HEIGHT_PX  # 1px/m
-map_origin_px = [MAP_WIDTH_PX, MAP_HEIGHT_PX-30]
+map_origin_px = [920, MAP_HEIGHT_PX-30]
 #map_origin_px = [0, 570]
 plant_data_file = 'plants.yaml'
 bug_data_file = 'bugs.yaml'
@@ -134,8 +134,8 @@ for tag_id, info in sensor_data["tags"].items():
     x = info["x"]
     y = info["y"]
     
-    x = x/MAP_RESOLUTION
-    y = MAP_WIDTH_PX - y/(266*0.04/MAP_WIDTH_PX) - 400
+    x = x/(100*0.04/MAP_HEIGHT_PX)
+    y = MAP_WIDTH_PX - y/(220*0.04/MAP_WIDTH_PX) - 150
     
     sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [22,22.4,22.8], 'time': [0,1,2] }
     
@@ -186,7 +186,7 @@ def get_default_sensor_mode(sensor):
 bridge = CvBridge()
 
 # Whether robot is connected or not
-robot_status = 0
+robot_status = 1
 prev_robot_status = 0
 
 #########################################################################################
@@ -637,8 +637,10 @@ def main_page():
                 id="camera-feed"
                 style="
                 width:100%;
+                height:220px;
                 border-radius:8px;
                 object-fit:cover;
+                background:#1f2937;
                 "
             />
             ''')
@@ -676,6 +678,7 @@ def main_page():
             with ui.column().classes('items-center'):
                 ui.button(on_click=logout, icon='logout').props('outline round')
                 
+            
         # Get any clicked point
         greenhouse  = ui.image('map_hmi_updated.png').classes('map-panel').style('position: relative; display: inline-block; overflow: visible !important;')
 
@@ -949,6 +952,23 @@ def main_page():
             </div>
             ''')
 
+        with ui.row().classes('w-full gap-4 q-mt-md justify-between ').style('max-width: 100%; margin-left: 22vw;'):
+
+            ui.button(
+                'Flowers',
+                on_click=lambda: draw_plants.refresh()
+            ).props('no-caps unelevated').classes('data-tab')
+
+            ui.button(
+                'Pests',
+                on_click=lambda: draw_bugs.refresh()
+            ).props('no-caps unelevated').classes('flex-grow').style('height: 45px;')
+
+            ui.button(
+                'Sensors',
+                on_click=lambda: draw_sensors.refresh()
+            ).props('no-caps unelevated').classes('flex-grow').style('height: 45px;')
+        
         # Assuming your main map element is right above this container...
         with ui.row().classes('w-full no-wrap gap-4 mt-4'):
     
@@ -967,6 +987,7 @@ def main_page():
                 # Scroll area matching the height of the alerts box
                 warnings_scroll = ui.scroll_area().classes('h-[150px] w-full mt-2')
  
+    
 
     def update_robot():
         global robot_status, warning_msgs, alert_msgs, battery_level
@@ -1008,10 +1029,10 @@ def main_page():
             battery_progress_bar.set_value(battery_level)
             battery_label.set_text(f'{battery_level*100:.0f}%')
             
-            if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
-                robot_status = 0
-                alert_msgs.append("Robot connection timed out")
-                warning_msgs.append("Robot connection lost")
+            # if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
+            #     robot_status = 0
+            #     alert_msgs.append("Robot connection timed out")
+            #     warning_msgs.append("Robot connection lost")
             
         else:
             robot_status_display.set_text('Status: Offline')

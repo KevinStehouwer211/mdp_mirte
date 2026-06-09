@@ -271,7 +271,7 @@ def load_styles():
         background: transparent !important;
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
-        top: 12vh;
+        top: 5vh;
         left: 22vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
@@ -421,6 +421,18 @@ def load_styles():
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
         top: 66vh;
+        left: 61vw;
+        overflow: hidden;
+        /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
+    }
+    
+    .flower-tab {
+        width: 25vw;
+        height:45px;
+        background: rgba(255,255,255,0.5);
+        /*border-radius: 24px;*/
+        position: fixed !important;  /* fixed so it stays during scroll */
+        top: 55vh;
         left: 61vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
