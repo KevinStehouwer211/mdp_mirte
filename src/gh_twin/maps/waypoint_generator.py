@@ -10,9 +10,9 @@ box_area_lb = 0.5*box_area
 image_scale = 2
 
 position_tolerance = 0.5
-deadband = 0.2
+deadband = -0.2
 waypoint_offset = 0.25
-N_waypoints = 5 # Number of waypoints along the longer edge of the box
+N_waypoints = 2 # Number of waypoints along the longer edge of the box
 
 map_file = "map_gh_simplified.pgm"
 map_yaml = "map_gh_simplified.yaml"
