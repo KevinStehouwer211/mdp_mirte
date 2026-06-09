@@ -35,6 +35,8 @@ tag-id sub attribute, value string;
 waypoint owns waypoint-kind;
 waypoint owns inspection-status;
 
+bin-start-end sub attribute, value string;
+
 
 # -------------------------
 # Entities
@@ -65,6 +67,7 @@ waypoint sub entity,
   owns y,
   owns yaw,
   owns pose-source,
+  owns waypoint-kind
   plays map-waypoint:waypoint,
   plays path-connection:from,
   plays path-connection:to,
