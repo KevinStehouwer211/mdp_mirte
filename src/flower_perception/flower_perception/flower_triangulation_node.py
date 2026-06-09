@@ -115,8 +115,8 @@ class FlowerTriangulation(Node):
             Detection3DArray, "/flower_triangulation/result", latched)
         # Final per-entity results for the task scheduler: flowers (class 0-2) and
         # pests (class 3), published once per episode on finish.
-        self.flower_pub = self.create_publisher(Flower, "flower_data", 10)
-        self.pest_pub   = self.create_publisher(Pest, "pest_data", 10)
+        self.flower_pub = self.create_publisher(Flower, "gui_flower_data", 10)
+        self.pest_pub   = self.create_publisher(Pest, "gui_pest_data", 10)
 
         self.create_service(Trigger, "/flower_triangulation/start", self._start_cb)
         self.create_service(Trigger, "/flower_triangulation/finish", self._finish_cb)
