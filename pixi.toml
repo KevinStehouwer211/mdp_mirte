@@ -9,6 +9,7 @@ fetch = {cmd = "vcs import --input repos.repos src", description = "Fetch MIRTE 
 build = {cmd = "colcon build --symlink-install", description = "Build the ROS workspace"}
 ws-clean = {cmd = "rm -rf build install log", description = "Clean build artifacts (build, install, log directories)"}
 clean-build = [{ task = "ws-clean" }, { task = "build" }]
+shell = "ros2 daemon stop && ros2 daemon start && bash"
 
 [dependencies]
 # Base ROS dependencies
@@ -110,4 +111,5 @@ pupil-apriltags = "*"
 
 [activation.env]
 GAZEBO_SUPPRESS_EOL_WARNING = "1"
-ROS_LOCALHOST_ONLY = "1"
+ROS_LOCALHOST_ONLY = "0"
+ROS_DOMAIN_ID = "0"
