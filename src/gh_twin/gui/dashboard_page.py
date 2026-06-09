@@ -40,7 +40,8 @@ import json
 MAP_WIDTH_PX  = 266*2*2.85
 MAP_HEIGHT_PX = 600
 TIMEOUT_STATUS_OFFLINE = 5
-MAP_RESOLUTION = 98*0.04/MAP_HEIGHT_PX  # 1px/m
+MAP_RESOLUTION_Y = 105*0.04/MAP_HEIGHT_PX
+MAP_RESOLUTION_X = (220*0.04/MAP_WIDTH_PX)  # 1px/m
 map_origin_px = [920, MAP_HEIGHT_PX-30]
 #map_origin_px = [0, 570]
 plant_data_file = 'plants.yaml'
@@ -136,7 +137,7 @@ for tag_id, info in sensor_data["tags"].items():
     y = info["y"]
     
     x = x/(100*0.04/MAP_HEIGHT_PX)
-    y = MAP_WIDTH_PX - y/(220*0.04/MAP_WIDTH_PX) - 150
+    y = MAP_WIDTH_PX - y/MAP_RESOLUTION_X - 150
     
     sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [22,22.4,22.8], 'time': [0,1,2] }
     
@@ -380,7 +381,7 @@ class ROS2Interface(Node):
         
         # Create or update sensor entry
         sensor_entry = {
-            'id': f'S{msg.id}',
+            'id': msg.id,
             'x': x,
             'y': y,
             'type': msg.sensor_type if msg.sensor_type else 'Unknown',
@@ -443,10 +444,10 @@ class ROS2Interface(Node):
     
     
     def real_to_pixel_transform(self,x,y):
-        return [(y/MAP_RESOLUTION) + map_origin_px[0], map_origin_px[1] - (x/MAP_RESOLUTION)]
+        return [ map_origin_px[0] - (y/MAP_RESOLUTION_X), map_origin_px[1] - (x/MAP_RESOLUTION_Y)]
     
     def pixel_to_real_transform(self,x,y):
-        return [(map_origin_px[1] - x)*MAP_RESOLUTION, (y - map_origin_px[0])*MAP_RESOLUTION]
+        return [(map_origin_px[1] - x)*MAP_RESOLUTION_X, (y - map_origin_px[0])*MAP_RESOLUTION_Y]
     
     def image_callback(self, msg):
         # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
@@ -1026,7 +1027,8 @@ def main_page():
             x = robot_pos['x']
             y = robot_pos['y']
             
-            x, y = ros2_interface.real_to_pixel_transform(0,0)
+            x, y = ros2_interface.real_to_pixel_transform(0,-3)
+            #print(x,y)
             
             theta = robot_pos['theta']
             ui.run_javascript(f"""
