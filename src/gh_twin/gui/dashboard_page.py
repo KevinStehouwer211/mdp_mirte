@@ -139,7 +139,14 @@ for tag_id, info in sensor_data["tags"].items():
     x = x/(100*0.04/MAP_HEIGHT_PX)
     y = MAP_WIDTH_PX - y/MAP_RESOLUTION_X - 150
     
-    sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [22,22.4,22.8], 'time': [0,1,2] }
+    sensor_ind = {'id': tag_id, 'x': y, 'y':x,
+                  'humidity': [22,22.4,22.8],
+                  'soil_moisture': [0.2,0.25,0.3],
+                  'temperature': [24,24.5,25],
+                  'co2': [400,410,420],
+                  'light': [300,320,350],
+                'time': [0,1,2], "is_dummy": True }
+    # sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [], 'time': [] }
     
     sensors_new.append(sensor_ind)
 
@@ -398,10 +405,11 @@ class ROS2Interface(Node):
     def sensor_callback_gui_new(self, msg: TagReading):
         #Update GUI sensors list from sensor messages.
         global sensors_new
+        ex_location = None
         
         # Extract ID (handling both 'id' from your old msg and 'tag_id' from the new service structure)
         raw_id = getattr(msg, 'id', getattr(msg, 'tag_id', 'Unknown'))
-        sensor_id = f'S{raw_id}'
+        sensor_id = f'{raw_id}'
         
         # Convert ROS time stamp to a single float (seconds) for easier plotting
         timestamp = msg.sim_time_of_day_seconds
@@ -409,15 +417,23 @@ class ROS2Interface(Node):
         # Find existing sensor entry
         existing = next((s for s in sensors_new if s['id'] == sensor_id), None)
         
-        if not existing:
+        if existing is None or existing.get("is_dummy"):
+            if existing.get("is_dummy"):
+                ex_location = (existing['x'], existing['y'])
+                sensors_new.remove(existing)
+            print(existing, "create new")
             # Initialize a new sensor entry
             existing = {
                 'id': sensor_id,
                 # Assuming location properties still exist; fallback to 0 if they don't
                 'x': getattr(msg.location, 'x', 0) if hasattr(msg, 'location') else 0,
                 'y': getattr(msg.location, 'y', 0) if hasattr(msg, 'location') else 0,
-                'time': []
+                'time': [],
+                'is_dummy': False  # Flag to indicate this is a real sensor entry
             }
+            if ex_location:
+                existing['x'] = ex_location[0]
+                existing['y'] = ex_location[1]
             
             # Dynamically initialize an empty list for each sensor reading type (e.g., 'temperature')
             for r in msg.readings:
@@ -727,8 +743,9 @@ def main_page():
                                 ).classes('tooltip-btn')
 
             def draw_sensors():
-
                 for sensor in sensors_new:
+                    if sensor['id'] == 11:
+                        print(sensor)
 
                     sid = sensor['id']
 
