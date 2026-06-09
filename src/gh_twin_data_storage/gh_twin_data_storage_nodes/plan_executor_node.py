@@ -284,9 +284,9 @@ class PlanExecutorNode(Node):
           $start isa waypoint,
             has id "{waypoint_id}",
             has bin-id "manual-start",
-            has x {float(pose.position.x)},
-            has y {float(pose.position.y)},
-            has yaw {yaw},
+            has x {float(pose.position.x):.6f},
+            has y {float(pose.position.y):.6f},
+            has yaw {yaw:.6f},
             has pose-source "manual-localization";
           $edge_first (from: $start, to: $first) isa path-connection,
             has id "{waypoint_id}-to-{closest_first_id}";
