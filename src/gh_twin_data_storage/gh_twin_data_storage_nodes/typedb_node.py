@@ -217,6 +217,7 @@ class TypeDBStorageNode(Node):
                   $wp isa waypoint,
                     has id "{self._typeql_string(waypoint_id)}",
                     has bin-id "{self._typeql_string(wp['bin_id'])}",
+                    has waypoint-kind "{self._typeql_string(wp['waypoint_kind'])}",
                     has x {float(wp['x'])},
                     has y {float(wp['y'])},
                     has yaw {float(wp['yaw'])},

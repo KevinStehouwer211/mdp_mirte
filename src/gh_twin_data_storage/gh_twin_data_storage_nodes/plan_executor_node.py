@@ -224,12 +224,8 @@ class PlanExecutorNode(Node):
         if not hasattr(pose, "position"):
             pose = pose.pose.pose
 
-        waypoints = [waypoint for waypoint in self.query_waypoint_poses() if waypoint["id"] != self.manual_start_waypoint_id]
-        closest_waypoints = sorted(
-            waypoints,
-            key=lambda waypoint: (waypoint["x"] - pose.position.x) ** 2
-            + (waypoint["y"] - pose.position.y) ** 2,
-        )[:2]
+        waypoints = [waypoint for waypoint in self.query_waypoint_poses() if waypoint["id"] != self.manual_start_waypoint_id and waypoint.get("waypoint_kind") == "start" ]
+        closest_waypoints = sorted(waypoints, key=lambda waypoint: (waypoint["x"] - pose.position.x) ** 2 + (waypoint["y"] - pose.position.y) ** 2, )[:2]
 
         self.remove_manual_start_waypoint()
         self.insert_manual_start_waypoint(pose, closest_waypoints)
@@ -392,7 +388,7 @@ class PlanExecutorNode(Node):
             )
             if action["name"] == "move":
                 self.execute_move(action)
-            elif action["name"] in {"start-scan", "end-scan"}:
+            elif action["name"] in {"start-scan", "finish-scan"}:
                 self.execute_arm_action(action)
             elif action["name"] == "move-while-scan":
                 self.execute_move(action)
@@ -458,11 +454,11 @@ class PlanExecutorNode(Node):
                 "raw": line.strip(),
             }
 
-            if action["name"] == "move" and len(action["args"]) >= 4:
+            if action["name"] in {"move", "move-while-scan"} and len(action["args"]) >= 4:
                 action["from_waypoint"] = action["args"][2]
                 action["to_waypoint"] = action["args"][3]
-            elif action["name"] == "scan" and len(action["args"]) >= 3:
-                action["waypoint"] = action["args"][1]
+            elif action["name"] in {"start-scan", "finish-scan"} and len(action["args"]) >= 3:
+                action["waypoint"] = action["args"][2]
 
             steps.append(action)
 
@@ -527,7 +523,8 @@ class PlanExecutorNode(Node):
         query = """
         match
           $wp isa waypoint, has id $wp_id, has x $x, has y $y, has yaw $yaw;
-        get $wp_id, $x, $y, $yaw;
+          $wp has waypoint-kind $waypoint_kind;
+        get $wp_id, $x, $y, $yaw, $waypoint_kind;
         """
         return [
             {
@@ -535,6 +532,7 @@ class PlanExecutorNode(Node):
                 "x": float(self.pddl_manager._read_attr(row, "x")),
                 "y": float(self.pddl_manager._read_attr(row, "y")),
                 "yaw": float(self.pddl_manager._read_attr(row, "yaw")),
+                "waypoint_kind": self.pddl_manager._read_attr(row, "waypoint_kind"),
             }
             for row in self.pddl_manager._read_query(query)
         ]
@@ -664,9 +662,9 @@ class PlanExecutorNode(Node):
             self.mark_waypoint_plants_scanned(action)
             self.scanned_waypoints.add(action["waypoint"])
 
-        elif action["name"] == "end-scan":
+        elif action["name"] == "finish-scan":
             self.get_logger().info("Moving arm back to base position.")
-            vision_controller.stop_triangulation()
+            vision_controller.finish_triangulation()
 
             exit_code = arm_controller.move_arm_to_pose("base")
             if exit_code != ArmExitCode.SUCCEEDED:
@@ -717,6 +715,12 @@ class PlanExecutorNode(Node):
             self.get_logger().info("Initializing arm controller")
             self.arm_controller = ArmController(config_file=config_file)
         return self.arm_controller
+    
+    def get_vision_controller(self) -> VisionController:
+        if self.vision_controller is None:
+            self.get_logger().info("Initializing vision controller")
+            self.vision_controller = VisionController()
+        return self.vision_controller
 
     def replace_current_arm_pose(self, arm_pose):
         arm_id = self.pddl_manager.arm_id

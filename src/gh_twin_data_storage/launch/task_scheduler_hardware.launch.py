@@ -64,8 +64,8 @@ def generate_launch_description():
                 "current_wp_id": "",
                 "reset_waypoints_on_start": True,
                 "waypoints_file": PathJoinSubstitution([
-                    FindPackageShare("gh_twin_data_storage"),
-                    "config",
+                    FindPackageShare("gh_twin"),
+                    "maps",
                     "waypoints_hardware.yaml",
                 ]),
             }

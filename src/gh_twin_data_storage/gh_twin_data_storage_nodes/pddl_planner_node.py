@@ -193,6 +193,23 @@ class PddlPlannerNode(Node):
             for bin_id, waypoint_ids in waypoint_bin_association.items()
             if len(waypoint_ids) > 1
         }
+    
+    def query_bin_corners(self):
+        query = """
+        match
+          $wp isa waypoint, has id $wp_id, has bin-id $bin_id, has waypoint-kind $waypoint_kind;
+        get $wp_id, $bin_id, $waypoint_kind;
+        """
+        corners = {}
+        for r in self._read_query(query):
+            wp_id = self._read_attr(r, "wp_id")
+            bin_id = self._read_attr(r, "bin_id")
+            waypoint_kind = self._read_attr(r, "waypoint_kind")
+            
+            corners.setdefault(bin_id, {})
+            corners[bin_id][waypoint_kind] = wp_id
+        
+        return corners
 
     def query_plants_with_waypoints(self):
         query = """
@@ -302,21 +319,16 @@ class PddlPlannerNode(Node):
         
         return '\n    '.join(objects)
 
-    def _format_pddl_init(self, robot_id, arm_id, arm_state, current_wp, waypoints, connections, plants, pests, visited_waypoints=None, scanned_waypoints=None):
+    def _format_pddl_init(self, robot_id, arm_id, arm_state, current_wp, waypoints, connections, start_end_connections, bin_corners, plants, pests, visited_waypoints=None, scanned_waypoints=None):
         visited_waypoints = set(visited_waypoints or set())
-        scanned_waypoints = set(scanned_waypoints or set())
 
         init = [
             f"    (robot-at {self._to_readable_pddl_name(robot_id)} {self._to_readable_pddl_name(current_wp)})"
         ]
         visited_waypoints.add(self._to_readable_pddl_name(current_wp))
-        scanned_waypoints.add(self._to_readable_pddl_name(current_wp))
 
         for waypoint in sorted(visited_waypoints):
             init.append(f"    (wp-visited {waypoint})")
-
-        for waypoint in sorted(scanned_waypoints):
-            init.append(f"    (wp-scanned {waypoint})")
 
         if arm_state == "base":
             init.append(f"    (arm-base {self._to_readable_pddl_name(arm_id)})")
@@ -329,6 +341,15 @@ class PddlPlannerNode(Node):
 
         for from_wp, to_wp in connections:
             init.append(f"    (connected-wp {self._to_readable_pddl_name(from_wp)} {self._to_readable_pddl_name(to_wp)})")
+       
+        for from_wp, to_wp in start_end_connections:
+            init.append(f"    (scan-connected-wp {self._to_readable_pddl_name(from_wp)} {self._to_readable_pddl_name(to_wp)})")
+
+        for endpoints in bin_corners.values():
+            if "start" in endpoints:
+                init.append(f"    (bin-waypoint-start {self._to_readable_pddl_name(endpoints['start'])})")
+            if "end" in endpoints:
+                init.append(f"    (bin-waypoint-end {self._to_readable_pddl_name(endpoints['end'])})")
 
         for plant in plants:
             plant_name = self._to_readable_pddl_name(plant["plant_id"])
@@ -357,7 +378,6 @@ class PddlPlannerNode(Node):
     
     def _format_pddl_goal(self, waypoints, plants, pests, visited_waypoints=None, scanned_waypoints=None, infeasible_waypoints=None):
         visited_waypoints = set(visited_waypoints or set())
-        scanned_waypoints = set(scanned_waypoints or set())
         infeasible_waypoints = set(infeasible_waypoints or set())
         goal = []
 
@@ -372,8 +392,6 @@ class PddlPlannerNode(Node):
                 continue
             if waypoint_name not in visited_waypoints:
                 goal.append(f"      (wp-visited {waypoint_name})")
-            if waypoint_name not in scanned_waypoints:
-                goal.append(f"      (wp-scanned {waypoint_name})")
 
         if not goal:
             goal.append("      ; no pending scan or spray goals")
@@ -384,7 +402,6 @@ class PddlPlannerNode(Node):
         self.get_logger().info(f"Generating PDDL problem: {output_file}")
         blocked_edges = set(blocked_edges or set())
         visited_waypoints = set(visited_waypoints or set())
-        scanned_waypoints = set(scanned_waypoints or set())
         infeasible_waypoints = set(infeasible_waypoints or set())
 
         robot_arm = self.query_robot_arm_pair()
@@ -395,31 +412,45 @@ class PddlPlannerNode(Node):
         current_wp = self.query_current_robot_waypoint(robot_id)
         current_wp_name = self._to_readable_pddl_name(current_wp)
         visited_waypoints.add(current_wp_name)
-        scanned_waypoints.add(current_wp_name)
 
         waypoints = self.query_waypoints()
-        connections = self.query_connections()
-        connections = [
-            (from_wp, to_wp)
-            for from_wp, to_wp in connections
-            if (self._to_readable_pddl_name(from_wp), self._to_readable_pddl_name(to_wp)) not in blocked_edges
-            and self._to_readable_pddl_name(from_wp) not in infeasible_waypoints
-            and self._to_readable_pddl_name(to_wp) not in infeasible_waypoints
-        ]
+        bin_corners = self.query_bin_corners()
+
+        connections= []
+        start_end_connections = []
+
+        for bin_id, corners in bin_corners.items():
+            start_wp = corners.get("start")
+            end_wp = corners.get("end")
+
+            if not start_wp:
+                continue
+            if not end_wp:
+                continue
+
+            start_end_connections.append((start_wp, end_wp))
+
+            for other_bin_id, other_corners in bin_corners.items():
+                if other_bin_id == bin_id:
+                    continue
+
+                other_start_wp = other_corners.get("start")
+
+                if other_start_wp:
+                    connections.append((end_wp, other_start_wp))
+        if current_wp == "manual_start_wp":
+            typedb_connections = self.query_connections()
+            for from_wp, to_wp in typedb_connections:
+                if from_wp == current_wp:
+                    connections.append((from_wp, to_wp))
+
         plants = self.query_plants_with_waypoints()
         pests = self.query_pests_with_waypoints()
         #sensors = self.query_sensors_with_waypoints()
 
         objects = self._format_pddl_objects(robot_id, arm_id, waypoints, plants, pests)
-        init = self._format_pddl_init(robot_id, arm_id, arm_state, current_wp, waypoints, connections, plants, pests, visited_waypoints=visited_waypoints, scanned_waypoints=scanned_waypoints)
-        goal = self._format_pddl_goal(
-            waypoints,
-            plants,
-            pests,
-            visited_waypoints=visited_waypoints,
-            scanned_waypoints=scanned_waypoints,
-            infeasible_waypoints=infeasible_waypoints,
-        )
+        init = self._format_pddl_init(robot_id, arm_id, arm_state, current_wp, waypoints, connections, start_end_connections, bin_corners, plants, pests, visited_waypoints=visited_waypoints)
+        goal = self._format_pddl_goal(waypoints, plants, pests, visited_waypoints=visited_waypoints, scanned_waypoints=scanned_waypoints, infeasible_waypoints=infeasible_waypoints)
 
         if not waypoints:
             raise RuntimeError("No waypoints found. Save waypoints or load demo data first.")

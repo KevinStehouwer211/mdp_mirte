@@ -47,7 +47,6 @@
     :effect (and
       (not (arm-base ?a))
       (arm-scan ?a)
-      (wp-scanned ?wp)
     )
   )
 
@@ -62,7 +61,6 @@
       (not (robot-at ?r ?from))
       (robot-at ?r ?to)
       (wp-visited ?to)
-      (wp-scanned ?to)
     )
   )
 

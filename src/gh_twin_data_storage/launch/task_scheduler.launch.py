@@ -64,9 +64,9 @@ def generate_launch_description():
                 "current_wp_id": "",
                 "reset_waypoints_on_start": True,
                 "waypoints_file": PathJoinSubstitution([
-                    FindPackageShare("gh_twin_data_storage"),
-                    "config",
-                    "waypoints.yml",
+                    FindPackageShare("gh_twin"),
+                    "maps",
+                    "waypoints.yaml",
                 ]),
             }
         ],
@@ -152,7 +152,7 @@ def generate_launch_description():
             ),
             SetEnvironmentVariable("LD_LIBRARY_PATH", runtime_library_path),
             typedb_node,
-            slam_launch,
+            #slam_launch,
             nav_launch,
             plan_executor,
         ]
