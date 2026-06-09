@@ -34,6 +34,11 @@ repositories:
     url: https://github.com/mirte-robot/mirte-ros-packages.git
     version: develop
 
+  PlayStation-JoyInterface-ROS2:
+    type: git
+    url: https://github.com/HarvestX/PlayStation-JoyInterface-ROS2.git
+    version: humble
+
   # shared
   # TODO: switch to ros-controllers/mecanum_drive_controller
   clearpath_mecanum_drive_controller:
