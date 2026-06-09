@@ -24,10 +24,6 @@ poses:
     positions: [-90.0, 65.0, -100.0, 70.0]
     duration_sec: 1.5
 
-  spray:
-    positions: [0.0, 0.0, 0.0, 0.0]
-    duration_sec: 1.5
-
   # Spray sequence waypoints — tune positions for the physical robot
   sequ_home:
     positions: [-90.0, 65.0, -100.0, 0.0]

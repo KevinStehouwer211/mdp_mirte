@@ -19,6 +19,8 @@ from typedb.driver import SessionType, TransactionType
 from gh_twin.nav_to_pose import ExitCode, NavToPose
 from gh_twin_data_storage_nodes.pddl_planner_node import PddlPlannerNode
 from gh_twin.arm_controller import ArmController, ArmExitCode
+from gh_twin.vision_controller import VisionController
+
 
 class PlanAborted(Exception):
     pass
@@ -98,6 +100,7 @@ class PlanExecutorNode(Node):
         self.robot_heartbeat = True
         self.operating_mode = 1 #default to manual mode
         self.arm_controller = None
+        self.vision_controller = None
         self.manual_start_waypoint_id = "manual_start_wp"
         self.manual_location_update = False
         self.plan_thread = None
@@ -389,8 +392,10 @@ class PlanExecutorNode(Node):
             )
             if action["name"] == "move":
                 self.execute_move(action)
-            elif action["name"] in {"scan", "spray"}:
+            elif action["name"] in {"start-scan", "end-scan"}:
                 self.execute_arm_action(action)
+            elif action["name"] == "move-while-scan":
+                self.execute_move_while_scan(action)
             else:
                 self.get_logger().warn(f"Skipping unsupported PDDL action: {action['raw']}")
 
@@ -644,31 +649,29 @@ class PlanExecutorNode(Node):
 
     def execute_arm_action(self, action: Dict):
         arm_controller = self.get_arm_controller()
+        vision_controller = self.get_vision_controller()
 
-        if action["name"] == "scan":
+        if action["name"] == "start-scan":
             self.get_logger().info("Moving arm to scan position.")
             exit_code = arm_controller.move_arm_to_pose("scan")
             if exit_code != ArmExitCode.SUCCEEDED:
                 raise RuntimeError(f"Arm failed to reach scan pose: {exit_code.name}")
             self.replace_current_arm_pose("scan")
 
-            try:
-                self.execute_wait(action)
-                self.mark_waypoint_plants_scanned(action)
-                self.scanned_waypoints.add(action["waypoint"])
-            finally:
-                exit_code = arm_controller.move_arm_to_pose("base")
-                if exit_code != ArmExitCode.SUCCEEDED:
-                    raise RuntimeError(f"Arm failed to return to base: {exit_code.name}")
-                self.replace_current_arm_pose("base")
+            vision_controller.start_triangulation()
 
-        elif action["name"] == "spray":
-            self.get_logger().info("Executing spray sequence.")
-            exit_code = arm_controller.execute_spray_sequence()
+            self.execute_wait(action)
+            self.mark_waypoint_plants_scanned(action)
+            self.scanned_waypoints.add(action["waypoint"])
+
+        elif action["name"] == "end-scan":
+            self.get_logger().info("Moving arm back to base position.")
+            vision_controller.stop_triangulation()
+
+            exit_code = arm_controller.move_arm_to_pose("base")
             if exit_code != ArmExitCode.SUCCEEDED:
-                raise RuntimeError(f"Spray sequence failed: {exit_code.name}")
+                raise RuntimeError(f"Arm failed to return to base pose: {exit_code.name}")
             self.replace_current_arm_pose("base")
-
         else:
             self.get_logger().warn(f"Skipping unknown arm action: {action['name']}")
 
