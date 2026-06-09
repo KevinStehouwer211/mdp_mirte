@@ -54,7 +54,7 @@ class PlanExecutorNode(Node):
         self.declare_parameter("problem_file", problem_file)
         self.declare_parameter("map_frame", "map")
         self.declare_parameter("execute_on_start", True)
-        self.declare_parameter("battery_topic", "/power/power_watcher")
+        self.declare_parameter("battery_topic", "io/power/power_watcher")
         self.declare_parameter("battery_threshold", 0.25)
         self.declare_parameter("battery_check_period", 10.0)
         self.declare_parameter("recharge_waypoint", "wp_0")
@@ -222,12 +222,17 @@ class PlanExecutorNode(Node):
             pose = pose.pose.pose
 
         waypoints = [waypoint for waypoint in self.query_waypoint_poses() if waypoint["id"] != self.manual_start_waypoint_id]
-        closest_waypoints = sorted(waypoints, key=lambda waypoint: (waypoint["x"] - pose.position.x) ** 2 + (waypoint["y"] - pose.position.y) ** 2)[:2]
+        closest_waypoints = sorted(
+            waypoints,
+            key=lambda waypoint: (waypoint["x"] - pose.position.x) ** 2
+            + (waypoint["y"] - pose.position.y) ** 2,
+        )[:2]
 
         self.remove_manual_start_waypoint()
         self.insert_manual_start_waypoint(pose, closest_waypoints)
         self.replace_current_location(self.pddl_manager._to_readable_pddl_name(self.manual_start_waypoint_id))
-        self.get_logger().info(f"Created manual start waypoint {self.manual_start_waypoint_id} at ({pose.position.x:.3f}, {pose.position.y:.3f}) connected to {closest_waypoints[0]['id']} and {closest_waypoints[1]['id']}")
+        connected_ids = ", ".join(waypoint["id"] for waypoint in closest_waypoints)
+        self.get_logger().info(f"Created manual start waypoint {self.manual_start_waypoint_id} at ({pose.position.x:.3f}, {pose.position.y:.3f}) connected to {connected_ids}")
 
     def remove_manual_start_waypoint(self):
         waypoint_id = self._typeql_string(self.manual_start_waypoint_id)
@@ -263,6 +268,9 @@ class PlanExecutorNode(Node):
         self._delete_query(delete_waypoint_query)
 
     def insert_manual_start_waypoint(self, pose, closest_waypoints):
+        if len(closest_waypoints) < 2:
+            raise RuntimeError("Cannot create manual start waypoint: no existing waypoints found.")
+
         waypoint_id = self._typeql_string(self.manual_start_waypoint_id)
         closest_first_id = self._typeql_string(closest_waypoints[0]["id"])
         closest_second_id = self._typeql_string(closest_waypoints[1]["id"])
@@ -484,10 +492,8 @@ class PlanExecutorNode(Node):
 
     def get_navigator(self) -> NavToPose:
         if self.navigator is None:
-            initial_pose = Pose()
-            initial_pose.orientation.w = 1.0
             self.get_logger().info("Initializing navigation subsystem")
-            self.navigator = NavToPose(initial_pose)
+            self.navigator = NavToPose()
         return self.navigator
 
     def query_waypoint_pose(self, waypoint_pddl_name: str) -> Dict[str, float]:
@@ -714,9 +720,9 @@ class PlanExecutorNode(Node):
         
         delete_query = f'''
         match
-          $arm isa arm, has id "{arm_id}", has arm-state $old-arm-state;
+          $arm isa arm, has id "{arm_id}", has arm-state $old_arm_state;
         delete
-          $arm has $old-arm-state;
+          $arm has $old_arm_state;
         '''
 
         insert_query = f'''

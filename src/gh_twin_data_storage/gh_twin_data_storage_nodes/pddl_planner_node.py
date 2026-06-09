@@ -319,11 +319,11 @@ class PddlPlannerNode(Node):
             init.append(f"    (wp-scanned {waypoint})")
 
         if arm_state == "base":
-            init.append(f"    (arm-base {self._to_readable_pddl_name(self.arm_id)})")
+            init.append(f"    (arm-base {self._to_readable_pddl_name(arm_id)})")
         elif arm_state == "scan":
-            init.append(f"    (arm-scan {self._to_readable_pddl_name(self.arm_id)})")
+            init.append(f"    (arm-scan {self._to_readable_pddl_name(arm_id)})")
         elif arm_state == "spray":
-            init.append(f"    (arm-spray {self._to_readable_pddl_name(self.arm_id)})")
+            init.append(f"    (arm-spray {self._to_readable_pddl_name(arm_id)})")
         else:
             raise RuntimeError(f"Unsupported arm-state for planning: {arm_state}")
 
