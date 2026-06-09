@@ -427,17 +427,41 @@ def load_styles():
     }
     
     .flower-tab {
-        width: 25vw;
+        width: 23vw;
         height:45px;
         background: rgba(255,255,255,0.5);
         /*border-radius: 24px;*/
         position: fixed !important;  /* fixed so it stays during scroll */
         top: 55vh;
-        left: 61vw;
+        left: 22vw;
         overflow: hidden;
         /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
     }
     
+    .sensor-tab {
+        width: 23vw;
+        height:45px;
+        background: rgba(255,255,255,0.5);
+        /*border-radius: 24px;*/
+        position: fixed !important;  /* fixed so it stays during scroll */
+        top: 55vh;
+        left: 49vw;
+        overflow: hidden;
+        /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
+    }
+    
+    .bug-tab {
+        width: 23vw;
+        height:45px;
+        background: rgba(255,255,255,0.5);
+        /*border-radius: 24px;*/
+        position: fixed !important;  /* fixed so it stays during scroll */
+        top: 55vh;
+        left: 75vw;
+        overflow: hidden;
+        /*box-shadow: 0 12px 40px rgba(0,0,0,0.12);*/
+    }
+        
     /* =========================================================
     BLOOM ANIMATION FOR PLANTS
     ========================================================= */

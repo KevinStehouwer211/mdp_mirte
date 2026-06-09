@@ -40,7 +40,8 @@ import json
 MAP_WIDTH_PX  = 266*2*2.85
 MAP_HEIGHT_PX = 600
 TIMEOUT_STATUS_OFFLINE = 5
-MAP_RESOLUTION = 98*0.04/MAP_HEIGHT_PX  # 1px/m
+MAP_RESOLUTION_Y = 105*0.04/MAP_HEIGHT_PX
+MAP_RESOLUTION_X = (220*0.04/MAP_WIDTH_PX)  # 1px/m
 map_origin_px = [920, MAP_HEIGHT_PX-30]
 #map_origin_px = [0, 570]
 plant_data_file = 'plants.yaml'
@@ -107,6 +108,7 @@ heartbeat_topic = '/robot_heartbeat'
 
 warning_msgs = []
 alert_msgs = []
+active_tab = 'Flowers'
 
 # ============================================================
 # STATIC DATA
@@ -135,7 +137,7 @@ for tag_id, info in sensor_data["tags"].items():
     y = info["y"]
     
     x = x/(100*0.04/MAP_HEIGHT_PX)
-    y = MAP_WIDTH_PX - y/(220*0.04/MAP_WIDTH_PX) - 150
+    y = MAP_WIDTH_PX - y/MAP_RESOLUTION_X - 150
     
     sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [22,22.4,22.8], 'time': [0,1,2] }
     
@@ -379,7 +381,7 @@ class ROS2Interface(Node):
         
         # Create or update sensor entry
         sensor_entry = {
-            'id': f'S{msg.id}',
+            'id': msg.id,
             'x': x,
             'y': y,
             'type': msg.sensor_type if msg.sensor_type else 'Unknown',
@@ -442,10 +444,10 @@ class ROS2Interface(Node):
     
     
     def real_to_pixel_transform(self,x,y):
-        return [(y/MAP_RESOLUTION) + map_origin_px[0], map_origin_px[1] - (x/MAP_RESOLUTION)]
+        return [ map_origin_px[0] - (y/MAP_RESOLUTION_X), map_origin_px[1] - (x/MAP_RESOLUTION_Y)]
     
     def pixel_to_real_transform(self,x,y):
-        return [(map_origin_px[1] - x)*MAP_RESOLUTION, (y - map_origin_px[0])*MAP_RESOLUTION]
+        return [(map_origin_px[1] - x)*MAP_RESOLUTION_X, (y - map_origin_px[0])*MAP_RESOLUTION_Y]
     
     def image_callback(self, msg):
         # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
@@ -619,7 +621,7 @@ def main_page():
                 
                 ros2_interface.switch_topic(CAMERA_TOPICS[camera])
                 current_topic.set_text(camera)
-                add_log_entry(warnings_scroll, f'Switched to {camera})', "text-amber-600")
+                add_log_entry(alerts_scroll, f'Switched to {camera}', "text-amber-600")
                 #ui.notify(f'Switched to {topic}')
                 
             camera_dropdown = ui.dropdown_button('Select Camera', auto_close=True).props('no-caps')
@@ -688,7 +690,6 @@ def main_page():
         with greenhouse:
             
             
-            @ui.refreshable
             def draw_plants():
                 
                 # Plotting plants
@@ -725,7 +726,6 @@ def main_page():
                                     on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
                                 ).classes('tooltip-btn')
 
-            @ui.refreshable
             def draw_sensors():
 
                 for sensor in sensors_new:
@@ -847,7 +847,6 @@ def main_page():
                             lambda d=sensor_dialog: d.open()
                         )
 
-            @ui.refreshable
             def draw_bugs():
                 for bug in bugs:
                     bid = bug['id']
@@ -875,7 +874,35 @@ def main_page():
                                 on_click=lambda b=bug: ros2_interface.go_to_pos(b['x'], b['y'])
                             ).classes('tooltip-btn').props('no-caps unelevated')
 
+            @ui.refreshable
+            def draw_content_area():
+                global active_tab
+
+            # This container wraps your changing data
+                with ui.element('div').classes('map-panel'):
+                    if active_tab == 'Flowers':
+                        # Call your original flower plotting logic here
+                        draw_plants()
+                        #add_log_entry(alerts_scroll, f'Updated flower plots', "text-amber-600")
+                        #ui.notify("Updated flower plots")
+                        # e.g., draw_plants() 
+            
+                    elif active_tab == 'Pests':
+                        draw_bugs()
+                        #add_log_entry(alerts_scroll, f'Updated pests plots', "text-amber-600")
+                        #ui.notify("Updated pests plots")
+            
+                    elif active_tab == 'Sensors':
+                        draw_sensors()
+                        #add_log_entry(alerts_scroll, f'Updated sensor plots', "text-amber-600")
+                        #ui.notify("Updated sensor plots")
+                        
             ui.element('div').classes('greenhouse-border')
+            
+            def set_active_tab(tab):
+                global active_tab
+                active_tab = tab
+                draw_content_area.refresh()
 
             #ui.html('<div class="home-station">Home</div>')
 
@@ -896,12 +923,14 @@ def main_page():
                 }
             ''')
             
-            draw_plants()
+            draw_content_area()
             
-            draw_sensors()
+            #draw_plants()
+            
+            #draw_sensors()
             
             # Plotting bugs
-            draw_bugs()
+            #draw_bugs()
 
 
             
@@ -952,22 +981,21 @@ def main_page():
             </div>
             ''')
 
-        with ui.row().classes('w-full gap-4 q-mt-md justify-between ').style('max-width: 100%; margin-left: 22vw;'):
+        with ui.row().classes('w-full items-center gap-4'):
+            ui.button(
+                'Display Flowers',
+                on_click=lambda: set_active_tab('Flowers')
+            ).props('no-caps unelevated').classes('flower-tab')
 
             ui.button(
-                'Flowers',
-                on_click=lambda: draw_plants.refresh()
-            ).props('no-caps unelevated').classes('data-tab')
+                'Display Pests',
+                on_click=lambda: set_active_tab('Pests')
+            ).props('no-caps unelevated').classes('bug-tab')
 
             ui.button(
-                'Pests',
-                on_click=lambda: draw_bugs.refresh()
-            ).props('no-caps unelevated').classes('flex-grow').style('height: 45px;')
-
-            ui.button(
-                'Sensors',
-                on_click=lambda: draw_sensors.refresh()
-            ).props('no-caps unelevated').classes('flex-grow').style('height: 45px;')
+                'Display Sensors',
+                on_click=lambda: set_active_tab('Sensors')
+            ).props('no-caps unelevated').classes('sensor-tab')
         
         # Assuming your main map element is right above this container...
         with ui.row().classes('w-full no-wrap gap-4 mt-4'):
@@ -999,7 +1027,8 @@ def main_page():
             x = robot_pos['x']
             y = robot_pos['y']
             
-            x, y = ros2_interface.real_to_pixel_transform(0,0)
+            x, y = ros2_interface.real_to_pixel_transform(0,-3)
+            #print(x,y)
             
             theta = robot_pos['theta']
             ui.run_javascript(f"""
@@ -1068,14 +1097,11 @@ def main_page():
             
     # Update sensor charts with new random data for demonstration
     def update_env_data():
+        global active_tab
 
         if robot_status:
             
-            draw_plants.refresh()
-            
-            draw_bugs.refresh()
-            
-            draw_sensors.refresh()
+            draw_content_area.refresh()
 
             # for item in sensor_charts:
 
