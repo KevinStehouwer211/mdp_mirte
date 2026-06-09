@@ -23,7 +23,7 @@ class ExitCode(enum.IntEnum):
 
 # Navigation interface class for sending navigation goals and tracking their status
 class NavToPose(Node):
-    def __init__(self, pose: Pose):
+    def __init__(self, pose: Pose = None):
         super().__init__('nav2_interface_node')
 
         #Initialize the navigator object
@@ -34,9 +34,6 @@ class NavToPose(Node):
         self.goal_pose    = PoseStamped()
         self.nav_task     = None
         self.current_pose = PoseWithCovarianceStamped()
-        # True once a real amcl_pose has arrived, so we never mistake the
-        # default zero pose for the robot actually being at the map origin.
-        self.pose_received = False
         # Timeout for navigation task in seconds
         self.NAV_TIMEOUT = 120
         # To ensure initialization of nav2 is completed before pose extraction and path planning is attempted
@@ -45,26 +42,11 @@ class NavToPose(Node):
         # AMCL pose estimation
         self.subscription = self.create_subscription(PoseWithCovarianceStamped,'amcl_pose',self.current_pose_callback,10)
 
-        # Set initial pose of the robot in the navigator object.
         self.initial_pose.header.frame_id = 'map'
         self.initial_pose.header.stamp = self.navigator.get_clock().now().to_msg()
-        self.initial_pose.pose = pose
-        # Hardcoded start position (simple override; bypasses live localization).
-        self.initial_pose.pose.position.x = 0.5
-        self.current_pose.pose.pose.position.x = 0.5
-        self.pose_received = True   # treat the hardcoded pose as a valid localization
-        self.navigator.setInitialPose(self.initial_pose)
-        # Only seed AMCL when given a real pose. A default/zero pose would
-        # relocalize the robot to map origin (inside a wall on the hardware map)
-        # and overwrite an estimate already set in RViz, so skip it then and
-        # keep whatever localization AMCL already has.
-        # if not (pose.position.x == 0.0 and pose.position.y == 0.0
-        #         and pose.orientation.w in (0.0, 1.0)):
-        #     self.navigator.setInitialPose(self.initial_pose)
-        # else:
-        #     self.navigator.get_logger().info(
-        #         "NavToPose: zero initial pose given; keeping AMCL's current "
-        #         "estimate (e.g. the RViz 2D Pose Estimate) instead of resetting to origin.")
+        if pose is not None:
+            self.initial_pose.pose = pose
+            self.navigator.setInitialPose(self.initial_pose)
 
         # Wait for navigation to fully activate, since autostarting nav2
         self.navigator.waitUntilNav2Active()
@@ -76,7 +58,6 @@ class NavToPose(Node):
     # Function to update the current pose of the robot from the AMCL pose estimation topic
     def current_pose_callback(self, msg):
         self.current_pose = msg.pose.pose
-        self.pose_received = True
 
     # Function to set a navigation goal and start the navigation task
     def nav_set_goal(self, pose: Pose = None):
@@ -123,13 +104,10 @@ class NavToPose(Node):
         return ExitCode.GOAL_CANCELED
     
     def nav_get_current_pose(self):
-        # Ready only when Nav2 is up AND a real amcl_pose has been received;
-        # otherwise the pose would be the default zero (map origin), which is a
-        # bogus localization, so report not-ready instead of handing it back.
-        if self.NAV_INIT_COMPLETE and self.pose_received:
-            return True, self.current_pose
+        if self.NAV_INIT_COMPLETE:
+            return self.NAV_INIT_COMPLETE, self.current_pose
         else:
-            return False, None
+            return self.NAV_INIT_COMPLETE, None
 
     def __del__(self):
         self.navigator.lifecycleShutdown()

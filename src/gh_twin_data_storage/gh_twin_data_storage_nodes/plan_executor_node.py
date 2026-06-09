@@ -54,7 +54,7 @@ class PlanExecutorNode(Node):
         self.declare_parameter("problem_file", problem_file)
         self.declare_parameter("map_frame", "map")
         self.declare_parameter("execute_on_start", True)
-        self.declare_parameter("battery_topic", "/power/power_watcher")
+        self.declare_parameter("battery_topic", "io/power/power_watcher")
         self.declare_parameter("battery_threshold", 0.25)
         self.declare_parameter("battery_check_period", 10.0)
         self.declare_parameter("recharge_waypoint", "wp_0")
@@ -150,15 +150,7 @@ class PlanExecutorNode(Node):
                 self.abort_requested = False
                 self.return_to_recharge_after_abort = False
                 if self.manual_location_update:
-                    try:
-                        self.update_current_location_to_typedb()
-                    except RuntimeError as exception:
-                        # Localization not ready (no amcl_pose). Stay on standby so
-                        # the operator can set a 2D Pose Estimate and retry, rather
-                        # than starting a run mis-localized or crashing the node.
-                        self.get_logger().error(
-                            f"Cannot start data collection: {exception} Staying on standby.")
-                        return
+                    self.update_current_location_to_typedb()
                 self.manual_location_update = False
                 self.start_plan_thread()
                 self.get_logger().info("Data collection mode; executing current plan")
@@ -196,12 +188,7 @@ class PlanExecutorNode(Node):
             self.infeasible_waypoints.clear()
             self.waypoint_failure_counts.clear()
             self.manual_location_update = False
-            try:
-                self.update_current_location_to_typedb()
-            except RuntimeError as exception:
-                self.get_logger().error(
-                    f"Cannot reset planner state: {exception} Set a 2D Pose Estimate and retry.")
-                return
+            self.update_current_location_to_typedb()
             self.replace_current_arm_pose("base")
             self.get_logger().info("Reset mode; planner state reset from current robot pose")
 
@@ -225,28 +212,27 @@ class PlanExecutorNode(Node):
             self.pddl_manager.connect_to_typedb()
 
         navigator = self.get_navigator()
-        # Wait for a real localization (amcl_pose) before reading the pose, so we
-        # never create a start waypoint at the default (0,0) origin / in a wall.
-        nav_ready, pose = navigator.nav_get_current_pose()
-        for _ in range(50):                          # up to ~5 s
-            if nav_ready and pose is not None:
-                break
+        for _ in range(10):
             rclpy.spin_once(navigator, timeout_sec=0.1)
-            nav_ready, pose = navigator.nav_get_current_pose()
+
+        nav_ready, pose = navigator.nav_get_current_pose()
         if not nav_ready or pose is None:
-            raise RuntimeError(
-                "Unable to read current robot pose: no amcl_pose received. Set a "
-                "2D Pose Estimate in RViz (away from walls) before starting a run.")
+            raise RuntimeError("Unable to read current robot pose.")
         if not hasattr(pose, "position"):
             pose = pose.pose.pose
 
         waypoints = [waypoint for waypoint in self.query_waypoint_poses() if waypoint["id"] != self.manual_start_waypoint_id]
-        closest_waypoints = sorted(waypoints, key=lambda waypoint: (waypoint["x"] - pose.position.x) ** 2 + (waypoint["y"] - pose.position.y) ** 2)[:2]
+        closest_waypoints = sorted(
+            waypoints,
+            key=lambda waypoint: (waypoint["x"] - pose.position.x) ** 2
+            + (waypoint["y"] - pose.position.y) ** 2,
+        )[:2]
 
         self.remove_manual_start_waypoint()
         self.insert_manual_start_waypoint(pose, closest_waypoints)
         self.replace_current_location(self.pddl_manager._to_readable_pddl_name(self.manual_start_waypoint_id))
-        self.get_logger().info(f"Created manual start waypoint {self.manual_start_waypoint_id} at ({pose.position.x:.3f}, {pose.position.y:.3f}) connected to {closest_waypoints[0]['id']} and {closest_waypoints[1]['id']}")
+        connected_ids = ", ".join(waypoint["id"] for waypoint in closest_waypoints)
+        self.get_logger().info(f"Created manual start waypoint {self.manual_start_waypoint_id} at ({pose.position.x:.3f}, {pose.position.y:.3f}) connected to {connected_ids}")
 
     def remove_manual_start_waypoint(self):
         waypoint_id = self._typeql_string(self.manual_start_waypoint_id)
@@ -282,6 +268,9 @@ class PlanExecutorNode(Node):
         self._delete_query(delete_waypoint_query)
 
     def insert_manual_start_waypoint(self, pose, closest_waypoints):
+        if len(closest_waypoints) < 2:
+            raise RuntimeError("Cannot create manual start waypoint: no existing waypoints found.")
+
         waypoint_id = self._typeql_string(self.manual_start_waypoint_id)
         closest_first_id = self._typeql_string(closest_waypoints[0]["id"])
         closest_second_id = self._typeql_string(closest_waypoints[1]["id"])
@@ -295,9 +284,9 @@ class PlanExecutorNode(Node):
           $start isa waypoint,
             has id "{waypoint_id}",
             has bin-id "manual-start",
-            has x {float(pose.position.x):.6f},
-            has y {float(pose.position.y):.6f},
-            has yaw {yaw:.6f},
+            has x {float(pose.position.x)},
+            has y {float(pose.position.y)},
+            has yaw {yaw},
             has pose-source "manual-localization";
           $edge_first (from: $start, to: $first) isa path-connection,
             has id "{waypoint_id}-to-{closest_first_id}";
@@ -503,10 +492,8 @@ class PlanExecutorNode(Node):
 
     def get_navigator(self) -> NavToPose:
         if self.navigator is None:
-            initial_pose = Pose()
-            initial_pose.orientation.w = 1.0
             self.get_logger().info("Initializing navigation subsystem")
-            self.navigator = NavToPose(initial_pose)
+            self.navigator = NavToPose()
         return self.navigator
 
     def query_waypoint_pose(self, waypoint_pddl_name: str) -> Dict[str, float]:
@@ -733,9 +720,9 @@ class PlanExecutorNode(Node):
         
         delete_query = f'''
         match
-          $arm isa arm, has id "{arm_id}", has arm-state $old-arm-state;
+          $arm isa arm, has id "{arm_id}", has arm-state $old_arm_state;
         delete
-          $arm has $old-arm-state;
+          $arm has $old_arm_state;
         '''
 
         insert_query = f'''

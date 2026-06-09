@@ -112,7 +112,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "use_sim_time",
-                default_value="true",
+                default_value="false",
                 description="Use simulation/Gazebo clock.",
             ),
             DeclareLaunchArgument(
@@ -137,7 +137,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "battery_topic",
-                default_value="/power/power_watcher",
+                default_value="io/power/power_watcher",
                 description="BatteryState topic published by the MIRTE INA226 power watcher.",
             ),
             DeclareLaunchArgument(
