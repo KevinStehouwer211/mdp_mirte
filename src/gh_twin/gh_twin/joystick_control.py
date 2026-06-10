@@ -175,12 +175,18 @@ def main(args=None):
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-
-    stop_msg = Twist()
-    node.base_publisher.publish(stop_msg)
-
-    node.destroy_node()
-    rclpy.shutdown()
+    finally:
+        # Best-effort stop so the base doesn't keep its last command on exit.
+        # On Ctrl-C the context may already be shut down, so guard the publish
+        # (otherwise it raises "publisher's context is invalid").
+        try:
+            if rclpy.ok():
+                node.base_publisher.publish(Twist())
+        except Exception:
+            pass
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

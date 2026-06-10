@@ -15,6 +15,8 @@ from rclpy.duration import Duration
 from rclpy.time import Time
 from rclpy.clock import ClockType
 
+from openai import OpenAI
+
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Twist
 from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import BatteryState
@@ -139,7 +141,14 @@ for tag_id, info in sensor_data["tags"].items():
     x = x/(100*0.04/MAP_HEIGHT_PX)
     y = MAP_WIDTH_PX - y/MAP_RESOLUTION_X - 150
     
-    sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [22,22.4,22.8], 'time': [0,1,2] }
+    sensor_ind = {'id': tag_id, 'x': y, 'y':x,
+                  'humidity': [22,22.4,22.8],
+                  'soil_moisture': [0.2,0.25,0.3],
+                  'temperature': [24,24.5,25],
+                  'co2': [400,410,420],
+                  'light': [300,320,350],
+                'time': [0,1,2], "is_dummy": True }
+    # sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [], 'time': [] }
     
     sensors_new.append(sensor_ind)
 
@@ -190,6 +199,15 @@ bridge = CvBridge()
 # Whether robot is connected or not
 robot_status = 1
 prev_robot_status = 0
+
+#########################################################################################
+
+
+client = OpenAI(
+    api_key="REMOVED_GROQ_API_KEY",
+    base_url="https://api.groq.com/openai/v1"
+)
+
 
 #########################################################################################
 
@@ -398,10 +416,11 @@ class ROS2Interface(Node):
     def sensor_callback_gui_new(self, msg: TagReading):
         #Update GUI sensors list from sensor messages.
         global sensors_new
+        ex_location = None
         
         # Extract ID (handling both 'id' from your old msg and 'tag_id' from the new service structure)
         raw_id = getattr(msg, 'id', getattr(msg, 'tag_id', 'Unknown'))
-        sensor_id = f'S{raw_id}'
+        sensor_id = f'{raw_id}'
         
         # Convert ROS time stamp to a single float (seconds) for easier plotting
         timestamp = msg.sim_time_of_day_seconds
@@ -409,15 +428,23 @@ class ROS2Interface(Node):
         # Find existing sensor entry
         existing = next((s for s in sensors_new if s['id'] == sensor_id), None)
         
-        if not existing:
+        if existing is None or existing.get("is_dummy"):
+            if existing.get("is_dummy"):
+                ex_location = (existing['x'], existing['y'])
+                sensors_new.remove(existing)
+            print(existing, "create new")
             # Initialize a new sensor entry
             existing = {
                 'id': sensor_id,
                 # Assuming location properties still exist; fallback to 0 if they don't
                 'x': getattr(msg.location, 'x', 0) if hasattr(msg, 'location') else 0,
                 'y': getattr(msg.location, 'y', 0) if hasattr(msg, 'location') else 0,
-                'time': []
+                'time': [],
+                'is_dummy': False  # Flag to indicate this is a real sensor entry
             }
+            if ex_location:
+                existing['x'] = ex_location[0]
+                existing['y'] = ex_location[1]
             
             # Dynamically initialize an empty list for each sensor reading type (e.g., 'temperature')
             for r in msg.readings:
@@ -545,6 +572,44 @@ def main_page():
 
     with ui.element('div').classes('main-container'):
         
+        def analyze_greenhouse():
+
+            prompt = f"""
+            Greenhouse Status
+        
+            Plants:
+            {plants}
+
+            Bugs:
+            {bugs}
+
+            Sensors:
+            {sensors_new}
+
+            Provide:
+            1. Overall health assessment
+            2. Potential issues
+            3. Recommended actions only in terms of what can be done in the greenhouse and not in terms of code update
+            """
+            response = client.responses.create(
+                model="llama-3.1-8b-instant",
+                input=prompt
+            )
+
+            analysis_label.set_content(response.output_text)
+
+
+        def run_analysis():
+            threading.Thread(
+                target=analyze_greenhouse,
+                daemon=True
+            ).start()
+        
+        with ui.dialog() as dialog, ui.card():
+            run_analysis()
+            analysis_label = ui.markdown('No analysis available')
+            ui.button('Close', on_click=dialog.close)
+        
         with ui.card().classes('side-card light-card items-stretch'):
             ui.label('Robot Status').classes('title text-left')
             robot_status_display = ui.label('Status: Offline').style('font-size:15px;')
@@ -665,6 +730,10 @@ def main_page():
             
             ui.separator()
             
+            llm_button = ui.button('Analyse Data', on_click=dialog.open)
+            
+            ui.separator()
+            
             def logout() -> None:
                 app.storage.user.clear()
                     
@@ -708,8 +777,8 @@ def main_page():
                     ).classes('entity'):
                      
                         ui.image(filename).style(
-                            'width:20px;'
-                            'height:20px;'
+                            'width:23px;'
+                            'height:23px;'
                             'cursor:pointer;'
                             'background: transparent;'
                             'transition: transform 0.2s ease;'
@@ -727,8 +796,9 @@ def main_page():
                                 ).classes('tooltip-btn')
 
             def draw_sensors():
-
                 for sensor in sensors_new:
+                    if sensor['id'] == 11:
+                        print(sensor)
 
                     sid = sensor['id']
 
@@ -1027,7 +1097,7 @@ def main_page():
             x = robot_pos['x']
             y = robot_pos['y']
             
-            x, y = ros2_interface.real_to_pixel_transform(0,-3)
+            #x, y = ros2_interface.real_to_pixel_transform(0,-3)
             #print(x,y)
             
             theta = robot_pos['theta']

@@ -21,6 +21,13 @@ poses:
     duration_sec: 1.5
 
   scan:
+<<<<<<< HEAD
+=======
+    positions: [-80.9, 3.0, -31.0, 90.0]
+    duration_sec: 1.5
+
+  scan_a:
+>>>>>>> a65079480009c4a4e24abaad89605ef18e31d20f
       positions: [-80.9, 3.0, -31.0, -90.0]
       duration_sec: 1.5
 

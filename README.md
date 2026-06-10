@@ -167,12 +167,20 @@ NOTE: Everytime you make use of a function that uses TypeDB, you must be connect
 
 ## Running the planner
 
-POPF will be used as planner, therefore it must first be installed natively through:
+POPF is used as the planner. It is **not** available via `apt` on this setup (the
+system runs ROS jazzy, while this workspace is a RoboStack/conda ROS humble inside
+pixi, and RoboStack does not package POPF). Instead it is built from source as part
+of the pixi workspace: the `popf` source is listed in `repos.repos` and its build
+dependencies (`flex`, `bison`, COIN-OR) are pixi dependencies.
 
 ```shell
-sudo apt update
-sudo apt install ros-humble-popf
+pixi run fetch          # clones popf (and the rest) into src/
+pixi run build          # builds the workspace, including the popf binary
 ```
+
+The planner node finds the binary via the `POPF_BIN` environment variable, which pixi
+sets automatically on activation (see tools/popf_env.sh) to
+`install/lib/popf/popf`. Override `POPF_BIN` if you have POPF installed elsewhere.
 
 Then, the waypoints must be put in /gh_twin_data_storage/config/waypoint.yml
 

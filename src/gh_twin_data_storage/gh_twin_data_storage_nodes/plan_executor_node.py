@@ -283,9 +283,9 @@ class PlanExecutorNode(Node):
           $start isa waypoint,
             has id "{waypoint_id}",
             has bin-id "manual-start",
-            has x {float(pose.position.x)},
-            has y {float(pose.position.y)},
-            has yaw {yaw},
+            has x {float(pose.position.x):.6f},
+            has y {float(pose.position.y):.6f},
+            has yaw {yaw:.6f},
             has pose-source "manual-localization";
           $edge_first (from: $start, to: $first) isa path-connection,
             has id "{waypoint_id}-to-{closest_first_id}";
@@ -493,8 +493,10 @@ class PlanExecutorNode(Node):
 
     def get_navigator(self) -> NavToPose:
         if self.navigator is None:
+            initial_pose = Pose()
+            initial_pose.orientation.w = 1.0
             self.get_logger().info("Initializing navigation subsystem")
-            self.navigator = NavToPose()
+            self.navigator = NavToPose(initial_pose)
         return self.navigator
 
     def query_waypoint_pose(self, waypoint_pddl_name: str) -> Dict[str, float]:

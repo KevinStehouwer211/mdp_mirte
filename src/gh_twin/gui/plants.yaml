@@ -1,15 +1,108 @@
 - id: P1
-  x: 170
-  y: 105
+  x: 100
+  y: 270
   bloomed: true
   color: White
+- id: P4
+  x: 110
+  y: 400
+  bloomed: true
+  color: red
+- id: P5
+  x: 110
+  y: 350
+  bloomed: false
+  color: red
+- id: P6
+  x: 95
+  y: 300
+  bloomed: false
+  color: Pink
+
 - id: P2
-  x: 470
-  y: 485,
+  x: 390
+  y: 270
   bloomed: true
   color: Pink
+- id: P7
+  x: 390
+  y: 420
+  bloomed: true
+  color: white
+- id: P8
+  x: 395
+  y: 380
+  bloomed: true
+  color: red
+
+
 - id: P3
-  x: 900
+  x: 250
   y: 300
   bloomed: true
   color: white
+- id: P9
+  x: 245
+  y: 350
+  bloomed: true
+  color: red
+- id: P10
+  x: 240
+  y: 370
+  bloomed: true
+  color: white
+
+
+- id: P11
+  x: 1050
+  y: 300
+  bloomed: true
+  color: pink
+- id: P12
+  x: 1042
+  y: 260
+  bloomed: true
+  color: red
+- id: P13
+  x: 1053
+  y: 380
+  bloomed: true
+  color: white
+
+
+- id: P14
+  x: 1165
+  y: 300
+  bloomed: true
+  color: red
+- id: P15
+  x: 1170
+  y: 260
+  bloomed: true
+  color: red
+- id: P16
+  x: 1190
+  y: 380
+  bloomed: true
+  color: white
+
+- id: P17
+  x: 1350
+  y: 300
+  bloomed: true
+  color: white
+- id: P18
+  x: 1340
+  y: 290
+  bloomed: true
+  color: red
+- id: P19
+  x: 1345
+  y: 360
+  bloomed: true
+  color: white
+- id: P20
+  x: 1345
+  y: 250
+  bloomed: true
+  color: pink
