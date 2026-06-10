@@ -777,8 +777,8 @@ def main_page():
                     ).classes('entity'):
                      
                         ui.image(filename).style(
-                            'width:20px;'
-                            'height:20px;'
+                            'width:23px;'
+                            'height:23px;'
                             'cursor:pointer;'
                             'background: transparent;'
                             'transition: transform 0.2s ease;'
