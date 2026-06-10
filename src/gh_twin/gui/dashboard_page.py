@@ -15,6 +15,8 @@ from rclpy.duration import Duration
 from rclpy.time import Time
 from rclpy.clock import ClockType
 
+from openai import OpenAI
+
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Twist
 from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import BatteryState
@@ -197,6 +199,15 @@ bridge = CvBridge()
 # Whether robot is connected or not
 robot_status = 1
 prev_robot_status = 0
+
+#########################################################################################
+
+
+client = OpenAI(
+    api_key="REMOVED_GROQ_API_KEY",
+    base_url="https://api.groq.com/openai/v1"
+)
+
 
 #########################################################################################
 
@@ -561,6 +572,44 @@ def main_page():
 
     with ui.element('div').classes('main-container'):
         
+        def analyze_greenhouse():
+
+            prompt = f"""
+            Greenhouse Status
+        
+            Plants:
+            {plants}
+
+            Bugs:
+            {bugs}
+
+            Sensors:
+            {sensors_new}
+
+            Provide:
+            1. Overall health assessment
+            2. Potential issues
+            3. Recommended actions only in terms of what can be done in the greenhouse and not in terms of code update
+            """
+            response = client.responses.create(
+                model="llama-3.1-8b-instant",
+                input=prompt
+            )
+
+            analysis_label.set_content(response.output_text)
+
+
+        def run_analysis():
+            threading.Thread(
+                target=analyze_greenhouse,
+                daemon=True
+            ).start()
+        
+        with ui.dialog() as dialog, ui.card():
+            run_analysis()
+            analysis_label = ui.markdown('No analysis available')
+            ui.button('Close', on_click=dialog.close)
+        
         with ui.card().classes('side-card light-card items-stretch'):
             ui.label('Robot Status').classes('title text-left')
             robot_status_display = ui.label('Status: Offline').style('font-size:15px;')
@@ -678,6 +727,10 @@ def main_page():
             
             ui.separator()
             save_button = ui.button('SAVE DATA', on_click=lambda: save_data()).classes('w-full')
+            
+            ui.separator()
+            
+            llm_button = ui.button('Analyse Data', on_click=dialog.open)
             
             ui.separator()
             
@@ -1044,7 +1097,7 @@ def main_page():
             x = robot_pos['x']
             y = robot_pos['y']
             
-            x, y = ros2_interface.real_to_pixel_transform(0,-3)
+            #x, y = ros2_interface.real_to_pixel_transform(0,-3)
             #print(x,y)
             
             theta = robot_pos['theta']
