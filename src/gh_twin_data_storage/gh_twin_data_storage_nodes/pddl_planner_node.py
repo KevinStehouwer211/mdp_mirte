@@ -12,6 +12,7 @@ from gh_twin_msgs.msg import Pest, Flower, Sensor
 from typedb.driver import TypeDB, SessionType, TransactionType
 import os
 
+""" This class builds the planning problem file from TypeDB and asks the planning tool POPF to solve it """
 
 class PddlPlannerNode(Node):    
     def __init__(
@@ -24,6 +25,7 @@ class PddlPlannerNode(Node):
         node_name='pddl_planner_node',
         use_global_arguments=True,
     ):
+        # Introduce planner parameters and PDDL files
         super().__init__(node_name, use_global_arguments=use_global_arguments)
 
         self.declare_parameter('typedb_address', "localhost:1729")
@@ -54,6 +56,7 @@ class PddlPlannerNode(Node):
         self.get_logger().info('PDDL planner node initialized.')
 
     def connect_to_typedb(self):
+        # Open a TypeDB connection and verify the configured database exists
         self.get_logger().info(f"Connecting to TypeDB at {self.typedb_address}")
 
         driver = TypeDB.core_driver(self.typedb_address)
@@ -65,9 +68,11 @@ class PddlPlannerNode(Node):
         self.get_logger().info(f"Connected to database: {self.database_name}")
 
     def _read_attr(self, concept_map, var_name):
+        # Get the value from a TypeDB concept map attribute
         return concept_map.get(var_name).as_attribute().get_value()
 
     def _read_query(self, query):
+        # Read TypeQL query and return the matching values
         if self.driver is None:
             raise RuntimeError("Not connected to TypeDB.")
 
@@ -76,6 +81,7 @@ class PddlPlannerNode(Node):
                 return list(transaction.query.get(query))
             
     def _write_query(self, query):
+        # Run a TypeQL write query into the knowledge base to insert information
         if self.driver is None:
             raise RuntimeError("Not connected to TypeDB.")
 
@@ -86,11 +92,13 @@ class PddlPlannerNode(Node):
                 return results
 
     def close(self):
+        # Close the TypeDB driver when the node is shutting down
         if self.driver:
             self.driver.close()
             self.get_logger().info("TypeDB connection closed.")
 
     def query_robot_arm_pair(self):
+        # Read the mounted robot and arm pair from TypeDB
         query = """
         match
           $robot isa robot, has id $robot_id;
@@ -112,6 +120,7 @@ class PddlPlannerNode(Node):
         }
 
     def query_current_robot_waypoint(self, robot_id):
+        # Get the current waypoint according to TypeDB
         query = f"""
         match
           $robot isa robot, has id "{robot_id}";
@@ -128,6 +137,7 @@ class PddlPlannerNode(Node):
         return self._read_attr(results[0], "wp_id")
 
     def query_waypoints(self):
+        # Return all known waypoint ids from TypeDB
         query = """
         match
           $wp isa waypoint, has id $wp_id;
@@ -137,6 +147,7 @@ class PddlPlannerNode(Node):
         return sorted({self._read_attr(r, "wp_id") for r in self._read_query(query)})
 
     def query_connections(self):
+        # Collect navigable waypoint connections within and between bins
         query = """
         match
           $from isa waypoint, has id $from_id;
@@ -173,6 +184,7 @@ class PddlPlannerNode(Node):
         return sorted(connections)
     
     def query_waypoint_bin_association(self):
+        # Group waypoints by bin id
         query = """
         match 
             $wp isa waypoint, has id $wp_id, has bin-id $bin_id;
@@ -195,6 +207,7 @@ class PddlPlannerNode(Node):
         }
     
     def query_bin_corners(self):
+        # Return the start and end waypoint ids for each greenhouse bin
         query = """
         match
           $wp isa waypoint, has id $wp_id, has bin-id $bin_id, has waypoint-kind $waypoint_kind;
@@ -212,6 +225,7 @@ class PddlPlannerNode(Node):
         return corners
 
     def query_plants_with_waypoints(self):
+        # Get every waypoint where a plant is located and its scan status
         query = """
         match
           $plant isa plant, has id $plant_id, has scan-status $scan_status;
@@ -231,6 +245,7 @@ class PddlPlannerNode(Node):
         return sorted(plants, key=lambda p: p["plant_id"])
 
     def query_pests_with_waypoints(self):
+        # Get every waypoint where a pest is located and its spray status
         query = """
         match
           $pest isa pest-detection, has id $pest_id, has spray-status $spray_status;
@@ -265,6 +280,7 @@ class PddlPlannerNode(Node):
     """
 
     def load_pddl_files(self, domain_file: Path, problem_file: Path):
+        # Load the domain and problem file that the planner will use to form a plan
         self.domain_file = Path(domain_file)
         self.problem_file = Path(problem_file)
 
@@ -276,6 +292,7 @@ class PddlPlannerNode(Node):
         self.get_logger().info(f'Loaded problem file: {self.problem_file}')
 
     def replan(self, output_problem_file=None, blocked_edges=None, visited_waypoints=None, scanned_waypoints=None, infeasible_waypoints=None):
+        # Regenerate the problem file with the latest world state and run the planner again
         problem_file = output_problem_file or self.problem_file
         self.generate_pddl_problem(problem_file, 
             blocked_edges=blocked_edges,
@@ -287,12 +304,14 @@ class PddlPlannerNode(Node):
         return self.run_planner(domain_file=self.domain_file, problem_file=problem_file)
 
     def _to_readable_pddl_name(self, identifier) -> str:
+        # Turn a database id into PDDL syntax
         name = str(identifier).strip().lower().replace(' ', '_').replace('.', '_')
         if name[0].isdigit():
             name = "id_" + name
         return name
 
     def _format_pddl_objects(self, robot_id, arm_id, waypoints, plants, pests):
+        # Format the PDDL problem file object block for the current robot, arm, waypoints, plants, and pests
         objects = [
             f"    {self._to_readable_pddl_name(robot_id)} - robot",
             f"    {self._to_readable_pddl_name(arm_id)} - arm",
@@ -320,6 +339,7 @@ class PddlPlannerNode(Node):
         return '\n    '.join(objects)
 
     def _format_pddl_init(self, robot_id, arm_id, arm_state, current_wp, waypoints, connections, start_end_connections, bin_corners, plants, pests, visited_waypoints=None, scanned_waypoints=None):
+        # Format the PDDL initial state from TypeDB facts and executor progress
         visited_waypoints = set(visited_waypoints or set())
 
         init = [
@@ -377,6 +397,7 @@ class PddlPlannerNode(Node):
         return '\n    '.join(init)
     
     def _format_pddl_goal(self, waypoints, plants, pests, visited_waypoints=None, scanned_waypoints=None, infeasible_waypoints=None):
+        # Format the PDDL goals to spray unsprayed pests and waypoints that have not been visited yet
         visited_waypoints = set(visited_waypoints or set())
         infeasible_waypoints = set(infeasible_waypoints or set())
         goal = []
@@ -399,6 +420,7 @@ class PddlPlannerNode(Node):
 
 
     def generate_pddl_problem(self, output_file="problem_generated.pddl", blocked_edges=None, visited_waypoints=None, scanned_waypoints=None, infeasible_waypoints=None):
+        # Query TypeDB and write a complete PDDL problem file with the objects, intial states and goals
         self.get_logger().info(f"Generating PDDL problem: {output_file}")
         blocked_edges = set(blocked_edges or set())
         visited_waypoints = set(visited_waypoints or set())
@@ -481,6 +503,7 @@ class PddlPlannerNode(Node):
         self.get_logger().info(f"Waypoints: {len(waypoints)}, connections: {len(connections)}, plants: {len(plants)}, pests: {len(pests)}")
 
     def run_planner(self, domain_file="DomainGreenhouse.pddl", problem_file="problem_generated.pddl"):
+        # Run POPF on the domain and problem files and return a executable plan
         self.get_logger().info("Running POPF planner...")
 
         popf_bin = os.environ.get("POPF_BIN", "/opt/ros/humble/lib/popf/popf")

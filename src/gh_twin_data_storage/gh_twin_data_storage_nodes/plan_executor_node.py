@@ -21,13 +21,15 @@ from gh_twin_data_storage_nodes.pddl_planner_node import PddlPlannerNode
 from gh_twin.arm_controller import ArmController, ArmExitCode
 from gh_twin.vision_controller import VisionController
 
-
+""" This class signals that the active plan has been aborted and should stop because the mission state changed """ 
 class PlanAborted(Exception):
     pass
 
-
+""" This class tells the planner for another route to a waypoint due to an infeasible movement edge """
 class ReplanNeeded(Exception):
+
     def __init__(self, from_waypoint, to_waypoint, reason):
+        # Store the failed edge and a reason why replanning is necessary
         self.from_waypoint = from_waypoint
         self.to_waypoint = to_waypoint
         self.reason = reason
@@ -35,6 +37,7 @@ class ReplanNeeded(Exception):
 
 
 def quaternion_from_yaw(yaw: float):
+    # Convert a yaw angle into the quaternion fields ROS expects
     half_yaw = yaw * 0.5
     return {
         "x": 0.0,
@@ -43,7 +46,7 @@ def quaternion_from_yaw(yaw: float):
         "w": math.cos(half_yaw),
     }
 
-
+""" This class is the main executor of the PDDL plans and acts as the task scheduler for the robot """ 
 class PlanExecutorNode(Node):
     def __init__(
         self,
@@ -124,6 +127,7 @@ class PlanExecutorNode(Node):
         )
         
     def destroy_node(self):
+        # Stop active actions, clean up helper nodes, and publish a final robot heartbeat before shutdown
         self.robot_heartbeat = False
         self.publish_robot_heartbeat()
         self.abort_requested = True
@@ -141,13 +145,14 @@ class PlanExecutorNode(Node):
             return super().destroy_node()
 
     def operating_mode_callback(self, msg: Int32):
+        # Callback to receive the requested mode from the HMI
         self.operating_mode = msg.data
         self.set_operating_mode()
         self.get_logger().info(f"Operating mode changed to: {self.operating_mode}")
 
     def set_operating_mode(self):
-        # this function subscribes/reads the mode selection topic from the HMI (\operatingmode) and updates the mode parameter
-
+        # This function subscribes/reads the mode selection topic from the HMI (\operatingmode) and updates the mode parameter
+        # It thereby also sets parameters correctly for the current mode
         if self.operating_mode == 0: #data collection
             if not self.plan_active and not self.plan_thread_running():
                 self.abort_requested = False
@@ -208,9 +213,11 @@ class PlanExecutorNode(Node):
             self.get_logger().info("Mode not implemented/known")
 
     def _typeql_string(self, value):
+        # Reform a value to match TypeQL syntax
         return str(value).replace("\\", "\\\\").replace('"', '\\"')
 
     def update_current_location_to_typedb(self):
+        # Create a new waypoint after having been in manual mode and set it as the current location
         if self.pddl_manager.driver is None:
             self.pddl_manager.connect_to_typedb()
 
@@ -234,6 +241,7 @@ class PlanExecutorNode(Node):
         self.get_logger().info(f"Created manual start waypoint {self.manual_start_waypoint_id} at ({pose.position.x:.3f}, {pose.position.y:.3f}) connected to {connected_ids}")
 
     def remove_manual_start_waypoint(self):
+        # Delete the waypoint and any relations that were created after being in manual mode
         waypoint_id = self._typeql_string(self.manual_start_waypoint_id)
 
         queries = [
@@ -267,6 +275,7 @@ class PlanExecutorNode(Node):
         self._delete_query(delete_waypoint_query)
 
     def insert_manual_start_waypoint(self, pose, closest_waypoints):
+        # Insert the manual mode waypoint at the robot pose and connect it to the nearest known waypoints
         if len(closest_waypoints) < 2:
             raise RuntimeError("Cannot create manual start waypoint: no existing waypoints found.")
 
@@ -295,11 +304,13 @@ class PlanExecutorNode(Node):
         self.pddl_manager._write_query(query)
 
     def _yaw_from_orientation(self, orientation):
+        # Convert a quaternion into a yaw angle
         siny_cosp = 2.0 * (orientation.w * orientation.z + orientation.x * orientation.y)
         cosy_cosp = 1.0 - 2.0 * (orientation.y * orientation.y + orientation.z * orientation.z)
         return math.atan2(siny_cosp, cosy_cosp)
 
     def _delete_query(self, query):
+        # Run a TypeQL delete query into the knowledge base to delete information
         if self.pddl_manager.driver is None:
             raise RuntimeError("Not connected to TypeDB.")
 
@@ -311,6 +322,7 @@ class PlanExecutorNode(Node):
                 transaction.commit()
 
     def _execute_plan_once(self):
+        # Run the current plan once
         self._started = True
         try:
             self.execute_current_plan()
@@ -318,9 +330,11 @@ class PlanExecutorNode(Node):
             self.get_logger().error(f"Plan execution failed: {exc}")
 
     def plan_thread_running(self):
+        # Checks if the background plan execution thread is alive
         return self.plan_thread is not None and self.plan_thread.is_alive()
 
     def start_plan_thread(self):
+        # Start plan execution in a background thread if no plan is already running
         with self.plan_thread_lock:
             if self.plan_active or self.plan_thread_running():
                 self.get_logger().warn("Plan execution is already active, ignoring start request")
@@ -329,6 +343,7 @@ class PlanExecutorNode(Node):
             self.plan_thread.start()
 
     def execute_current_plan(self):
+        # Repeatedly plan and execute the plan until the mission completes, aborts, or rerouting is needed
         if self.pddl_manager.driver is None:
             self.pddl_manager.connect_to_typedb()
         self.replace_current_arm_pose("base")
@@ -380,6 +395,7 @@ class PlanExecutorNode(Node):
         self.get_logger().info("Plan execution complete")
 
     def execute_plan_steps(self, plan):
+        # Go through the plan steps and execute the requested actions
         self.get_logger().info(f"Executing {len(plan)} plan steps")
         for index, action in enumerate(plan, start=1):
             self.raise_if_aborted()
@@ -396,15 +412,18 @@ class PlanExecutorNode(Node):
                 self.get_logger().warn(f"Skipping unsupported PDDL action: {action['raw']}")
 
     def remember_current_waypoint_progress(self):
+        # Mark the robot's current waypoint as visited and scanned before replanning
         current_waypoint = self.pddl_manager.query_current_robot_waypoint(self.pddl_manager.robot_id)
         current_waypoint = self.pddl_manager._to_readable_pddl_name(current_waypoint)
         self.visited_waypoints.add(current_waypoint)
         self.scanned_waypoints.add(current_waypoint)
 
     def battery_callback(self, msg: BatteryState):
+        # Periodic battery callback to store the latest battery level
         self.latest_battery = msg
 
     def check_battery_level(self):
+        # Watch the current battery level
         if self.latest_battery is None:
             self.get_logger().warn(f"No battery messages received yet on {self.battery_topic}")
             return
@@ -423,12 +442,13 @@ class PlanExecutorNode(Node):
             self.return_to_recharge()
 
     def publish_robot_heartbeat(self):
+        # Publish the robot heartbeat to indicate if the task scheduler is on or off
         msg = Bool()
         msg.data = self.robot_heartbeat
         self.robot_heartbeat_publisher.publish(msg)
 
     def parse_popf_plan(self, planner_output: str) -> List[Dict]:
-        """Turn POPF text into simple action dictionaries."""
+        # Turn POPF planner text into action dictionaries the executor can run
         pattern = re.compile(
             r"^\s*(?P<start>[0-9]+(?:\.[0-9]+)?)\s*:\s*"
             r"\((?P<body>[^)]+)\)"
@@ -465,6 +485,7 @@ class PlanExecutorNode(Node):
         return sorted(steps, key=lambda action: action["start_time"])
 
     def execute_move(self, action: Dict):
+        # Execute a PDDL move action and update TypeDB when the robot reaches the target waypoint
         self.raise_if_aborted()
         if "from_waypoint" not in action or "to_waypoint" not in action:
             raise RuntimeError(f"Move step has unexpected arguments: {action['raw']}")
@@ -480,6 +501,7 @@ class PlanExecutorNode(Node):
         self.visited_waypoints.add(waypoint_name)
 
     def execute_wait(self, action: Dict):
+        # Wait for the designated time connected to a PDDL action
         self.raise_if_aborted()
         duration = action["duration"]
 
@@ -492,6 +514,7 @@ class PlanExecutorNode(Node):
             time.sleep(0.1)
 
     def get_navigator(self) -> NavToPose:
+        # Get the navigator and use it for move actions
         if self.navigator is None:
             initial_pose = Pose()
             initial_pose.orientation.w = 1.0
@@ -500,6 +523,7 @@ class PlanExecutorNode(Node):
         return self.navigator
 
     def query_waypoint_pose(self, waypoint_pddl_name: str) -> Dict[str, float]:
+        # Get the pose of a waypoint from TypeDB
         query = """
         match
           $wp isa waypoint, has id $wp_id, has x $x, has y $y, has yaw $yaw;
@@ -522,6 +546,7 @@ class PlanExecutorNode(Node):
         raise RuntimeError(f"No TypeDB pose found for waypoint '{waypoint_pddl_name}'")
 
     def query_waypoint_poses(self):
+        # Return all waypoint poses and their respective waypoint-kind values from TypeDB
         query = """
         match
           $wp isa waypoint, has id $wp_id, has x $x, has y $y, has yaw $yaw;
@@ -540,6 +565,7 @@ class PlanExecutorNode(Node):
         ]
 
     def navigate_to_waypoint(self, waypoint_pddl_name: str, pose: Dict[str, float]):
+        # Send a navigation goal and check it until success, failure, or mission abort
         navigator = self.get_navigator()
         goal_pose = self.build_nav_pose(pose)
 
@@ -583,16 +609,19 @@ class PlanExecutorNode(Node):
         self.get_logger().info(f"Reached {pose['id']}")
 
     def cancel_current_nav_goal(self):
+        # Cancel the current navigation goal
         if self.navigator is None:
             return
 
         self.navigator.nav_cancel_goal()
 
     def raise_if_aborted(self):
+        # Raise PlanAborted if an abort has been requested and the robot is not moving to its recharge location
         if self.abort_requested and not self.returning_to_recharge:
             raise PlanAborted()
 
     def return_to_recharge(self):
+        # Navigate to the configured recharge waypoint
         self.returning_to_recharge = True
         self.abort_requested = False
         try:
@@ -620,6 +649,7 @@ class PlanExecutorNode(Node):
         return pose_msg
 
     def replace_current_location(self, waypoint_pddl_name: str):
+        # Replace the robot's current-location relation in TypeDB with a given waypoint
         waypoint_id = self.query_waypoint_pose(waypoint_pddl_name)["id"]
         robot_id = self.pddl_manager.robot_id
 
@@ -648,6 +678,7 @@ class PlanExecutorNode(Node):
         self.get_logger().info(f"Updated TypeDB current-location to {waypoint_id}")
 
     def execute_arm_action(self, action: Dict):
+        # Execute scan-related arm actions from the PDDL actions
         arm_controller = self.get_arm_controller()
         vision_controller = self.get_vision_controller()
 
@@ -676,6 +707,7 @@ class PlanExecutorNode(Node):
             self.get_logger().warn(f"Skipping unknown arm action: {action['name']}")
 
     def mark_waypoint_plants_scanned(self, action: Dict):
+        # Mark plants observed at a scan waypoint as scanned in TypeDB
         waypoint_pddl = action.get("waypoint")
 
         if not waypoint_pddl:
@@ -712,6 +744,7 @@ class PlanExecutorNode(Node):
         self.get_logger().info(f"Marked {len(plants)} plant(s) scanned at {waypoint_id}")
 
     def get_arm_controller(self) -> ArmController:
+        # Get the arm controller and configured poses
         if self.arm_controller is None:
             config_file = self.get_parameter("arm_poses_file").value or None
             self.get_logger().info("Initializing arm controller")
@@ -719,12 +752,14 @@ class PlanExecutorNode(Node):
         return self.arm_controller
     
     def get_vision_controller(self) -> VisionController:
+        # Get the vision controller and use it for scan actions
         if self.vision_controller is None:
             self.get_logger().info("Initializing vision controller")
             self.vision_controller = VisionController()
         return self.vision_controller
 
     def replace_current_arm_pose(self, arm_pose):
+        # Replace the arm-state attribute in TypeDB with the current arm pose
         arm_id = self.pddl_manager.arm_id
         
         delete_query = f'''

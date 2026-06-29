@@ -8,7 +8,7 @@ from lupin_greenhouse_msgs.srv import GetTagReading
 from lupin_greenhouse_msgs.msg import TagReading
 import yaml
 
-
+""" The TypeDBStorageNode class receives and stores greenhouse observations including flower, pest, tag readings and waypoint data in a TypeDB knowledge base. """ 
 class TypeDBStorageNode(Node):
     def __init__(self):
         super().__init__('typedb_storage_node')
@@ -54,6 +54,7 @@ class TypeDBStorageNode(Node):
         self.get_logger().info('Typedb storage node is ready to receive flower, pest, and sensor messages.')
 
     def connect_to_typedb(self):
+        # Open a TypeDB connection and verify the configured database exists
         self.get_logger().info(f"Connecting to TypeDB at {self.typedb_address}")
 
         driver = TypeDB.core_driver(self.typedb_address)
@@ -65,9 +66,11 @@ class TypeDBStorageNode(Node):
         self.get_logger().info(f"Connected to database: {self.database_name}")
 
     def _read_attr(self, concept_map, var_name):
+        # Get the value from a TypeDB concept map attribute
         return concept_map.get(var_name).as_attribute().get_value()
 
     def _read_query(self, query):
+        # Read TypeQL query and return the matching values
         if self.driver is None:
             raise RuntimeError("Call connect_to_typedb() first.")
 
@@ -76,6 +79,7 @@ class TypeDBStorageNode(Node):
                 return list(transaction.query.get(query))
             
     def _write_query(self, query):
+        # Run a TypeQL write query into the knowledge base to insert information
         if self.driver is None:
             raise RuntimeError("Call connect_to_typedb() first.")
 
@@ -86,6 +90,7 @@ class TypeDBStorageNode(Node):
                 return results
 
     def _delete_query(self, query):
+        # Run a TypeQL delete query into the knowledge base to delete information
         if self.driver is None:
             raise RuntimeError("Call connect_to_typedb() first.")
 
@@ -97,6 +102,7 @@ class TypeDBStorageNode(Node):
                 transaction.commit()
 
     def _delete_waypoint_relations(self, waypoint_match):
+        # Delete currently known waypoint relations in the knowledge base
         relation_queries = [
             f'''
             match
@@ -146,14 +152,17 @@ class TypeDBStorageNode(Node):
             self._delete_query(query)
 
     def close(self):
+        # Close the TypeDB driver when the node is shutting down
         if self.driver:
             self.driver.close()
             self.get_logger().info("TypeDB connection closed.")
 
     def _typeql_string(self, value):
+        # Reform a value to match TypeQL syntax
         return str(value).replace("\\", "\\\\").replace('"', '\\"')
 
     def _query_waypoints(self):
+        # Query that reads waypoint ids and positions from TypeDB
         query = '''
         match
           $wp isa waypoint, has id $wp_id, has x $x, has y $y;
@@ -170,7 +179,7 @@ class TypeDBStorageNode(Node):
         return waypoints
 
     def remove_waypoint(self, waypoint_id: str):
-        """Remove a waypoint and all its associated TypeDB relations."""
+        # Remove a waypoint and all relations attached to it in the knowledge base
         if not waypoint_id:
             raise ValueError('Waypoint id must be provided.')
 
@@ -193,7 +202,7 @@ class TypeDBStorageNode(Node):
         self.get_logger().info(f"Removed waypoint '{waypoint_id}' from TypeDB")
 
     def remove_all_waypoints(self):
-        """Remove all waypoints and their associated relations from TypeDB."""
+        # Removes all waypoints and their relations in the knowledge base
         delete_query = '''
         match
           $wp isa waypoint;
@@ -204,6 +213,7 @@ class TypeDBStorageNode(Node):
         self.get_logger().info("Removed all waypoints from TypeDB")
 
     def load_waypoints_from_yml(self):
+        # Load waypoints from the configured YAML file and insert them into the knowledge base
         if not self.waypoints_file:
             self.get_logger().error(f"No waypoints file available.")
             return
@@ -250,6 +260,7 @@ class TypeDBStorageNode(Node):
             self._write_query(query)
         
     def _find_nearest_waypoint(self, location):
+        # Find the nearest stored waypoint to the current location
         waypoints = self._query_waypoints()
         if not waypoints:
             raise RuntimeError('No waypoints found in TypeDB.')
@@ -261,6 +272,7 @@ class TypeDBStorageNode(Node):
         return best
 
     def _get_waypoint_for_location(self, location):
+        # Map a detection location to the nearest known waypoint
         if location is None or 'x' not in location or 'y' not in location:
             raise RuntimeError('Location must include x and y values.')
 
@@ -282,6 +294,7 @@ class TypeDBStorageNode(Node):
             return self._get_current_wp_id()
 
     def _get_current_wp_id(self):
+        # Get the current waypoint id of the robots, corresponding to its current location
         query = f'''
         match
           $robot isa robot, has id "{self._typeql_string(self.robot_id)}";
@@ -296,6 +309,7 @@ class TypeDBStorageNode(Node):
         raise RuntimeError(f"No current-location found for robot '{self.robot_id}'.")
 
     def flower_callback(self, msg: Flower):
+        # Flower detection callback that skips close duplicates, stores flowers, and publishes to the knowledge base and GUI
         current_x = msg.location.x
         current_y = msg.location.y
         current_color = msg.color
@@ -362,6 +376,7 @@ class TypeDBStorageNode(Node):
         self.gui_flower_pub.publish(msg)
 
     def pest_callback(self, msg: Pest):
+        # Pest detection callback that skips close duplicates, stores pests, and publishes to the knowledge base and GUI
         current_x = msg.location.x
         current_y = msg.location.y
 
@@ -485,17 +500,12 @@ class TypeDBStorageNode(Node):
     #             self.get_logger().error(f"Failed to insert reading {reading_id}: {exception}")
 
     def vision_tag_callback(self, msg: Sensor):
-        """
-        Triggered automatically when the vision node broadcasts a newly scanned tag.
-        """
+        # Request bridge telemetry when the vision node reports a scanned tag
         tag_id = msg.tag_id
         self.request_tag_reading(tag_id)
 
     def request_tag_reading(self, tag_id: str):
-        """
-        Call this method whenever a tag is scanned (e.g., triggered by your vision/scheduler pipeline).
-        It sends an asynchronous request to the greenhouse bridge service.
-        """
+        # Request the greenhouse bridge service for the latest reading from a scanned tag
         # Wait for the service to be available so we don't crash on an unready system
         if not self.bridge_client.wait_for_service(timeout_sec=2.0):
             self.get_logger().error('Service /greenhouse_bridge/get_tag_reading not available!')
@@ -511,9 +521,7 @@ class TypeDBStorageNode(Node):
         future.add_done_callback(self.bridge_service_callback)
 
     def bridge_service_callback(self, future):
-        """
-        Callback triggered automatically when the greenhouse bridge responds.
-        """
+        # Store returned tag readings in TypeDB and extend the telemetry message to the HMI
         try:
             response = future.result()
             self.get_logger().info("Received successful service response from greenhouse bridge.")
