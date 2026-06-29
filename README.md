@@ -105,3 +105,151 @@ note: every new pixi session requires you to set the domain id.
 
 * **Inconsistent results across your group?** Make sure to use the same configuration of your workspace. Look at `git diff` to see changes. Moreover, we recommend using Pixi's lock file `pixi.lock`. This file pins the exact versions of dependencies installed in your Pixi environment. You can share this lock file within your group to detect inconsistencies and install the same dependency versions across your group.
 
+
+## TypeDB setup
+
+For the autonomous planning and executing of actions, the TypeDB knowledge base must be set up to store environment data, which PDDL can use for planning.
+
+First TypeDB must be installed with the following commands in a terminal:
+
+```shell
+sudo apt install software-properties-common apt-transport-https gpg
+gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-key 17507562824cfdcc
+gpg --export 17507562824cfdcc | sudo tee /etc/apt/trusted.gpg.d/typedb.gpg > /dev/null
+echo "deb https://repo.typedb.com/public/public-release/deb/ubuntu trusty main" | sudo tee /etc/apt/sources.list.d/typedb.list > /dev/null
+sudo apt update
+sudo apt install typedb=2.28.3
+```
+
+Note it is important to have TypeDB version 2.28.3.
+
+In a new terminal: 
+
+```shell
+typedb server
+```
+
+Then again in a new terminal:
+
+```shell
+typedb console --core=localhost:1729
+```
+
+```shell
+database create greenhouse
+```
+
+Load the schema into the database:
+
+```shell
+transaction greenhouse schema write
+source typedb_files/greenhouse-schema.tql
+commit
+```
+
+Load the data into the database:
+
+```shell
+transaction greenhouse data write
+source typedb_files/greenhouse-data.tql
+commit
+```
+
+To check if this went ok you can use the following commands in the same console:
+
+```shell
+database schema greenhouse
+```
+
+The database should now be set up correctly. You only need to go back into the TypeDB console in the future if you want to write or read from the database manually.
+
+NOTE: Everytime you make use of a function that uses TypeDB, you must be connected to the TypeDB server through the "typedb server" terminal.
+
+## Running the planner
+
+POPF is used as the planner. It is **not** available via `apt` on this setup (the
+system runs ROS jazzy, while this workspace is a RoboStack/conda ROS humble inside
+pixi, and RoboStack does not package POPF). Instead it is built from source as part
+of the pixi workspace: the `popf` source is listed in `repos.repos` and its build
+dependencies (`flex`, `bison`, COIN-OR) are pixi dependencies.
+
+```shell
+pixi run fetch          # clones popf (and the rest) into src/
+pixi run build          # builds the workspace, including the popf binary
+```
+
+The planner node finds the binary via the `POPF_BIN` environment variable, which pixi
+sets automatically on activation (see tools/popf_env.sh) to
+`install/lib/popf/popf`. Override `POPF_BIN` if you have POPF installed elsewhere.
+
+Then, the waypoints must be put in /gh_twin_data_storage/config/waypoint.yml
+
+With the "typedb server" open in one terminal, open a terminal to run the greenhouse simulation:
+
+```shell
+source install/setup.bash
+ros2 launch gh_twin greenhouse_launch.xml
+```
+
+And a terminal to run the planner.
+
+```shell
+source install/setup.bash
+ros2 launch gh_twin_data_storage task_scheduler.launch.py
+```
+
+And the gui:
+
+```shell
+cd src/gh_twin/gui/
+python3 main.py
+```
+Then in the gui select "measurement mode", and the planner should start a plan and finish it a plan.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

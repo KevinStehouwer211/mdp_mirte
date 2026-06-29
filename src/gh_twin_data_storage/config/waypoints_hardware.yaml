@@ -1,0 +1,25 @@
+- id: wp_16
+  bin_id: bin_7
+  x: 1.07
+  y: -0.88
+  yaw: 1.57
+  pose_source: manual_slam
+- id: wp_17
+  bin_id: bin_7
+  x: 1.07
+  y: 0.64
+  yaw: 1.57
+  pose_source: manual_slam
+- id: wp_18
+  bin_id: bin_7
+  x: 2.00
+  y: -0.88
+  yaw: -1.57
+  pose_source: manual_slam
+- id: wp_19
+  bin_id: bin_7
+  x: 2.00
+  y: 0.64
+  yaw: -1.57
+  pose_source: manual_slam
+

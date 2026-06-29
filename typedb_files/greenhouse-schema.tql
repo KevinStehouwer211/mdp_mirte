@@ -1,0 +1,166 @@
+define
+
+# -------------------------
+# Attributes
+# -------------------------
+
+id sub attribute, value string;
+name sub attribute, value string;
+description sub attribute, value string;
+
+world-frame sub attribute, value string;
+x sub attribute, value double;
+y sub attribute, value double;
+yaw sub attribute, value double;
+bin-id sub attribute, value string;
+pose-source sub attribute, value string;
+
+scan-status sub attribute, value string;
+spray-status sub attribute, value string;
+detection-status sub attribute, value string;
+arm-state sub attribute, value string;
+
+reading-type sub attribute, value string;
+reading-value sub attribute, value double;
+reading-unit sub attribute, value string;
+reading-time sub attribute, value double;
+
+image-uri sub attribute, value string;
+
+waypoint-kind sub attribute, value string;
+inspection-status sub attribute, value string;
+
+tag-id sub attribute, value string;
+
+bin-start-end sub attribute, value string;
+
+
+# -------------------------
+# Entities
+# -------------------------
+
+slam-map sub entity,
+  owns id @key,
+  owns name,
+  owns world-frame,
+  plays map-waypoint:map;
+
+robot sub entity,
+  owns id @key,
+  owns name,
+  plays mounted-arm:robot-body,
+  plays current-location:located;
+
+arm sub entity,
+  owns id @key,
+  owns name,
+  owns arm-state,
+  plays mounted-arm:arm-part;
+
+waypoint sub entity,
+  owns id @key,
+  owns bin-id,
+  owns x,
+  owns y,
+  owns yaw,
+  owns pose-source,
+  owns waypoint-kind,
+  plays map-waypoint:waypoint,
+  plays path-connection:from,
+  plays path-connection:to,
+  plays observation-location:observer,
+  plays current-location:location;
+
+plant sub entity,
+  owns id @key,
+  owns scan-status,
+  plays observation-location:observed-plant,
+  plays scan-subject:subject,
+  plays pest-presence:host;
+
+pest-detection sub entity,
+  owns id @key,
+  owns detection-status,
+  owns spray-status,
+  owns image-uri,
+  plays pest-presence:pest;
+
+scan-event sub entity,
+  owns id @key,
+  owns image-uri,
+  plays scan-subject:scan,
+  plays reading-link:scan;
+
+sensor-reading sub entity,
+  owns id @key,
+  owns reading-type,
+  owns reading-value,
+#  owns reading-unit,
+  owns reading-time,
+  plays reading-link:reading;
+
+april-tag sub entity,
+  owns id @key,
+  owns tag-id,
+  plays object-location:located,
+  plays tag-identifies:tag;
+
+
+# -------------------------
+# Relations
+# -------------------------
+
+mounted-arm sub relation,
+  relates robot-body,
+  relates arm-part;
+
+current-location sub relation,
+  relates located,
+  relates location;
+
+map-waypoint sub relation,
+  relates map,
+  relates waypoint;
+
+path-connection sub relation,
+  owns id @key,
+  relates from,
+  relates to;
+
+observation-location sub relation,
+  relates observer,
+  relates observed-plant;
+
+scan-subject sub relation,
+  relates scan,
+  relates subject;
+
+reading-link sub relation,
+  relates scan,
+  relates reading;
+
+pest-presence sub relation,
+  relates host,
+  relates pest;
+
+object-location sub relation,
+  relates located,
+  relates at-waypoint;
+
+waypoint plays object-location:at-waypoint;
+plant plays object-location:located;
+pest-detection plays object-location:located;
+
+tag-identifies sub relation,
+  relates tag,
+  relates identified-object;
+
+april-tag plays tag-identifies:tag;
+plant plays tag-identifies:identified-object;
+
+waypoint-scan sub relation,
+  relates scan,
+  relates location;
+
+scan-event plays waypoint-scan:scan;
+waypoint plays waypoint-scan:location;

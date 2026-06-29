@@ -65,6 +65,7 @@ setup(
         'console_scripts': [
             'nav2_interface_node = gh_twin.nav_to_pose:main',
             'publish_waypoint = gh_twin.publish_waypoint:main',
+            'joystick_control = gh_twin.joystick_control:main',
         ],
     },
 )

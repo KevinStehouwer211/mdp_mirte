@@ -34,6 +34,11 @@ repositories:
     url: https://github.com/mirte-robot/mirte-ros-packages.git
     version: develop
 
+  PlayStation-JoyInterface-ROS2:
+    type: git
+    url: https://github.com/HarvestX/PlayStation-JoyInterface-ROS2.git
+    version: humble
+
   # shared
   # TODO: switch to ros-controllers/mecanum_drive_controller
   clearpath_mecanum_drive_controller:
@@ -41,3 +46,14 @@ repositories:
     url: https://github.com/clearpathrobotics/clearpath_mecanum_drive_controller.git
     # 'main' branch, commit: "Merge pull request #4 from clearpathrobotics/fix/on_deactivate"
     version: 5b001053d0de88e28f0fecc8315a55eadeee9522
+
+  lupin_greenhouse_ros_group17:
+    type: git
+    url: git@gitlab.tudelft.nl:cor/ro47007/2026/group_17/lupin-greenhouse-ros-group-17.git
+    version: main
+
+  # POPF PDDL planner (source of the ros-humble-popf package), built from source
+  popf:
+    type: git
+    url: https://github.com/fmrico/popf.git
+    version: humble-devel

@@ -1,0 +1,1212 @@
+#!/usr/bin/env python3
+from asyncio import events
+from datetime import datetime
+
+from nicegui import ui, app, events
+
+import threading
+import yaml
+
+
+import rclpy
+from rclpy.node import Node
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.duration import Duration
+from rclpy.time import Time
+from rclpy.clock import ClockType
+
+from openai import OpenAI
+
+from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Twist
+from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import BatteryState
+
+from std_msgs.msg import Int32, Bool
+from cv_bridge import CvBridge
+import cv2
+import base64
+
+try:
+    from gh_twin_interfaces.msg import Flower, Pest, Sensor
+except ModuleNotFoundError:
+    from gh_twin_msgs.msg import Flower, Pest, Sensor
+from lupin_greenhouse_msgs.msg import TagReading
+
+import random
+import math
+import json
+
+
+
+# Constants
+MAP_WIDTH_PX  = 266*2*2.85
+MAP_HEIGHT_PX = 600
+TIMEOUT_STATUS_OFFLINE = 5
+MAP_RESOLUTION_Y = 105*0.04/MAP_HEIGHT_PX
+MAP_RESOLUTION_X = (220*0.04/MAP_WIDTH_PX)  # 1px/m
+map_origin_px = [920, MAP_HEIGHT_PX-30]
+#map_origin_px = [0, 570]
+plant_data_file = 'plants.yaml'
+bug_data_file = 'bugs.yaml'
+sensor_data_file = 'sensortag_locations.json'
+
+CAMERA_TOPICS = {
+    'None': None,
+    'Wrist Camera': '/gripper_camera/image_raw/compressed',
+    'Front Camera': '/camera/color/image_raw/compressed'    
+}
+
+robot_pose_topic = '/amcl_pose'
+
+battery_topic = '/io/power/power_watcher'
+
+robot_goal_pos_topic = '/goal_pose'
+
+operating_mode_topic = '/operating_mode'
+
+OPERATING_MODE = {
+    -1: 'No Mode Selected',
+    0: 'Measurement Mode',
+    1: 'Manual Mode',
+    2: 'Pause Mission',
+    3: 'Return Home',
+    4: 'Reset',
+    5: 'Shutdown',
+}
+
+teleop_topic = '/mirte_base_controller/cmd_vel'
+
+######################################################################################
+
+# Shared variables
+# ROS2 Interface node object
+ros2_interface = None
+
+# Camera image obtained from hardware
+camera = {
+    'topic':   'None', # currently selected camera topic
+    'frame':   None,   # latest JPEG bytes
+}
+
+# Current robot pose
+robot_pos = {
+    'x': map_origin_px[0],   # normalized position in %
+    'y': map_origin_px[1],
+    'theta': 0.0, # normalized orientation in %
+}
+
+# Goal robot position
+goal_pos = {
+    'x': 50.0,
+    'y': 50.0,
+}
+
+# Battery percentage
+battery_level = 0.0
+
+current_operating_mode = "No Mode Selected"
+
+heartbeat_topic = '/robot_heartbeat'
+
+warning_msgs = []
+alert_msgs = []
+active_tab = 'Flowers'
+
+# ============================================================
+# STATIC DATA
+# ============================================================
+# time_points = [
+#     '10:00',
+#     '10:05',
+#     '10:10',
+
+# ]
+
+sensor_charts = []
+
+            
+plants = yaml.safe_load(open(plant_data_file, 'r'))
+
+bugs = yaml.safe_load(open(bug_data_file, 'r'))
+
+with open("sensortag_locations.json", "r") as f:
+    sensor_data = json.load(f)
+    
+sensors_new = []
+
+for tag_id, info in sensor_data["tags"].items():
+    x = info["x"]
+    y = info["y"]
+    
+    x = x/(100*0.04/MAP_HEIGHT_PX)
+    y = MAP_WIDTH_PX - y/MAP_RESOLUTION_X - 150
+    
+    sensor_ind = {'id': tag_id, 'x': y, 'y':x,
+                  'humidity': [22,22.4,22.8],
+                  'soil_moisture': [0.2,0.25,0.3],
+                  'temperature': [24,24.5,25],
+                  'co2': [400,410,420],
+                  'light': [300,320,350],
+                'time': [0,1,2], "is_dummy": True }
+    # sensor_ind = {'id': tag_id, 'x': y, 'y':x, 'humidity': [], 'time': [] }
+    
+    sensors_new.append(sensor_ind)
+
+# sensors = [
+#     {'id': 'S1', 'x': 1070, 'y': 180, 'type': 'Humidity', 'data': [22,22.4,22.8] },
+#     {'id': 'S2', 'x': 770, 'y': 120, 'type': 'Temperature', 'data': [24,24.5,25]},
+# ]
+
+SENSOR_MODES = [
+    'soil_moisture',
+    'humidity',
+    'temperature',
+    'co2',
+    'light',
+]
+
+
+def get_default_sensor_mode(sensor):
+    """Return first available mode for this sensor."""
+    for mode in SENSOR_MODES:
+        if mode in sensor and len(sensor[mode]) > 0:
+            return mode
+    return None
+
+# sensors_new = [
+#     {
+#         'id': 'S1',
+#         'x': 1070, 'y': 180,
+#         'humidity': [22,22.4,22.8],
+#         'temperature': [24,24.5,25],
+#         'co2': [400,410,420],
+#         'light': [300,320,350],
+#         'time': [0,1,2]
+#     },
+#     {
+#         'id': 'S2',
+#         'x': 770, 'y': 120,
+#         'humidity': [22,22.4,22.8],
+#         # 'temperature': [24,24.5,25],
+#         'co2': [400,410,420],
+#         'light': [300,320,350],
+#         'time': [0,1,2]
+#     }
+# ]
+
+bridge = CvBridge()
+
+# Whether robot is connected or not
+robot_status = 1
+prev_robot_status = 0
+
+#########################################################################################
+
+
+client = OpenAI(
+    api_key="REMOVED_GROQ_API_KEY",
+    base_url="https://api.groq.com/openai/v1"
+)
+
+
+#########################################################################################
+
+# ROS2 INTERFACE NODE
+
+class ROS2Interface(Node):
+
+    def __init__(self):
+
+        super().__init__('ros2_interface')
+        
+        self.timeout_counter = self.get_time_now()
+        
+        self.heartbeat_sub = self.create_subscription(
+            Bool,
+            heartbeat_topic,
+            self.heartbeat_callback,
+            10
+        )
+
+        # Subscriber for robot pose 
+        self.robot_pose_sub = self.create_subscription(
+            PoseWithCovarianceStamped,
+            robot_pose_topic,
+            self.pose_callback,
+            10
+        )
+        
+        # Subscriber for battery status
+        self.battery_sub = self.create_subscription(
+            BatteryState,
+            battery_topic,
+            self.battery_callback,
+            10
+        )
+        self.camera_sub = None
+        self.switch_topic(camera['topic'])
+        
+        # Subscribers for entity data
+        self.flower_sub = self.create_subscription(
+            Flower,
+            'gui_flower_data',
+            self.flower_callback_gui,
+            10
+        )
+        
+        self.pest_sub = self.create_subscription(
+            Pest,
+            'gui_pest_data',
+            self.pest_callback_gui,
+            10
+        )
+        
+        # self.sensor_sub = self.create_subscription(
+        #     Sensor,
+        #     'sensor_data',
+        #     self.sensor_callback_gui,
+        #     10
+        # )
+
+        self.sensor_sub = self.create_subscription(
+            TagReading,
+            '/greenhouse/telemetry',
+            self.sensor_callback_gui_new,
+            10
+        )
+        
+        # Publisher for robot goal position
+        self.goal_pos_pub = self.create_publisher(
+            Pose,
+            robot_goal_pos_topic,
+            10
+        )
+        
+        # Publisher for operating mode
+        self.operating_mode_pub = self.create_publisher(
+            Int32,
+            operating_mode_topic,
+            10
+        )
+        
+        # Publisher for teleoperation commands
+        self.teleop_pub = self.create_publisher(
+            Twist,
+            teleop_topic,
+            10
+        )
+
+    def heartbeat_callback(self, msg):
+        global robot_status, prev_robot_status, warning_msgs, alert_msgs
+        robot_status = 1 if msg.data else 0
+        if robot_status == 0:
+            if prev_robot_status == 1:
+                alert_msgs.append("Robot is offline")
+                warning_msgs.append("Robot connection lost")
+                prev_robot_status = 0
+        else:
+            self.timeout_counter = self.get_time_now()
+            if prev_robot_status == 0:
+                alert_msgs.append("Robot is online")
+                prev_robot_status = 1
+        
+    
+    # Function to convert ROS2 pose to normalized % coordinates and store in shared dict
+    def pose_callback(self, msg):
+        
+        global robot_pos, robot_status
+
+        ros_x = msg.pose.pose.position.x
+        ros_y = msg.pose.pose.position.y
+        ros_rot = msg.pose.pose.orientation
+
+        # Write into the shared dict
+        robot_pos['x'], robot_pos['y'] = self.real_to_pixel_transform(ros_x, ros_y)
+        robot_pos['theta'] = math.atan2(ros_rot.z, ros_rot.w) * 2 * (180 / math.pi)  # Convert to degrees
+        
+        
+    def switch_topic(self, topic: str):
+        if self.camera_sub is not None:
+            self.destroy_subscription(self.camera_sub)
+        self.camera_sub = self.create_subscription(
+            CompressedImage,
+            topic,
+            self.image_callback,
+            1,          # queue depth 1 — always use latest frame
+        )
+        camera['topic'] = topic
+        
+    def battery_callback(self, msg):
+        global battery_level
+        battery_level = msg.percentage
+        
+    def flower_callback_gui(self, msg: Flower):
+        """Update GUI plants list from flower messages."""
+        global plants
+        
+        # Convert color to the format used in the GUI (lowercase for image lookup)
+        color = msg.color if msg.color else 'white'
+        
+        x, y = self.real_to_pixel_transform(msg.location.x, msg.location.y)
+        
+        # Create or update plant entry
+        plant_entry = {
+            'id': f'P{msg.id}',
+            'x': x,
+            'y': y,
+            'bloomed': msg.bloomed,
+            'color': color,
+        }
+        
+        # Update or add to plants list (check if id already exists)
+        existing = next((p for p in plants if p['id'] == plant_entry['id']), None)
+        if existing:
+            existing.update(plant_entry)
+        else:
+            plants.append(plant_entry)
+    
+    def pest_callback_gui(self, msg: Pest):
+        """Update GUI bugs list from pest messages."""
+        global bugs
+        
+        x, y = self.real_to_pixel_transform(msg.location.x, msg.location.y)
+        
+        # Create or update bug entry
+        bug_entry = {
+            'id': f'B{msg.id}',
+            'x': x,
+            'y': y,
+        }
+        
+        # Update or add to bugs list
+        existing = next((b for b in bugs if b['id'] == bug_entry['id']), None)
+        if existing:
+            existing.update(bug_entry)
+        else:
+            bugs.append(bug_entry)
+    
+    def sensor_callback_gui(self, msg: Sensor):
+        """Update GUI sensors list from sensor messages."""
+        global sensors
+        
+        # Extract numerical values from readings for chart data
+        values = [float(r.value) for r in msg.readings if hasattr(r, 'value')]
+        
+        # Keep only the most recent readings for the chart (e.g., last 10)
+        values = values[-10:] if len(values) > 10 else values
+        
+        x, y = self.real_to_pixel_transform(msg.location.x, msg.location.y)
+        
+        # Create or update sensor entry
+        sensor_entry = {
+            'id': msg.id,
+            'x': x,
+            'y': y,
+            'type': msg.sensor_type if msg.sensor_type else 'Unknown',
+            'data': values if values else [0],
+        }
+        
+        # Update or add to sensors list
+        existing = next((s for s in sensors if s['id'] == sensor_entry['id']), None)
+        if existing:
+            existing.update(sensor_entry)
+        else:
+            sensors.append(sensor_entry)
+    
+    def sensor_callback_gui_new(self, msg: TagReading):
+        #Update GUI sensors list from sensor messages.
+        global sensors_new
+        ex_location = None
+        
+        # Extract ID (handling both 'id' from your old msg and 'tag_id' from the new service structure)
+        raw_id = getattr(msg, 'id', getattr(msg, 'tag_id', 'Unknown'))
+        sensor_id = f'{raw_id}'
+        
+        # Convert ROS time stamp to a single float (seconds) for easier plotting
+        timestamp = msg.sim_time_of_day_seconds
+        
+        # Find existing sensor entry
+        existing = next((s for s in sensors_new if s['id'] == sensor_id), None)
+        
+        if existing is None or existing.get("is_dummy"):
+            if existing.get("is_dummy"):
+                ex_location = (existing['x'], existing['y'])
+                sensors_new.remove(existing)
+            print(existing, "create new")
+            # Initialize a new sensor entry
+            existing = {
+                'id': sensor_id,
+                # Assuming location properties still exist; fallback to 0 if they don't
+                'x': getattr(msg.location, 'x', 0) if hasattr(msg, 'location') else 0,
+                'y': getattr(msg.location, 'y', 0) if hasattr(msg, 'location') else 0,
+                'time': [],
+                'is_dummy': False  # Flag to indicate this is a real sensor entry
+            }
+            if ex_location:
+                existing['x'] = ex_location[0]
+                existing['y'] = ex_location[1]
+            
+            # Dynamically initialize an empty list for each sensor reading type (e.g., 'temperature')
+            for r in msg.readings:
+                existing[r.name] = []
+                
+            sensors_new.append(existing)
+
+        # Append the new time
+        existing['time'].append(timestamp)
+        
+        # Append the new values to their respective lists
+        for r in msg.readings:
+            if r.name in existing:
+                existing[r.name].append(float(r.value))
+                
+        # Keep only the most recent readings for the chart (e.g., last 10)
+        max_history = 10
+        existing['time'] = existing['time'][-max_history:]
+        
+        for r in msg.readings:
+            if r.name in existing:
+                existing[r.name] = existing[r.name][-max_history:]
+        
+    
+    
+    def real_to_pixel_transform(self,x,y):
+        return [ map_origin_px[0] - (y/MAP_RESOLUTION_X), map_origin_px[1] - (x/MAP_RESOLUTION_Y)]
+    
+    def pixel_to_real_transform(self,x,y):
+        return [(map_origin_px[1] - x)*MAP_RESOLUTION_X, (y - map_origin_px[0])*MAP_RESOLUTION_Y]
+    
+    def image_callback(self, msg):
+        # Convert ROS CompressedImage → OpenCV BGR → JPEG bytes → base64
+        cv_img = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        _, buf  = cv2.imencode('.jpg', cv_img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        camera['frame'] = base64.b64encode(buf).decode('utf-8')
+
+    def go_to_pos(self, pos_x, pos_y):
+        # Convert % position back to ROS2 map coordinates
+        ros_x, ros_y = self.pixel_to_real_transform(pos_x, pos_y)
+        goal_pose = Pose()
+        goal_pose.position.x = ros_x
+        goal_pose.position.y = ros_y
+        if current_operating_mode == "Manual Mode":
+            self.goal_pos_pub.publish(goal_pose)
+            ui.notify(f'Navigating to position at ({ros_x:.1f}, {ros_y:.1f})')
+            alert_msgs.append(f"Navigating to ({ros_x:.1f}, {ros_y:.1f})")
+        
+        
+    def set_operating_mode(self, mode: int):
+        global current_operating_mode
+        current_operating_mode = OPERATING_MODE.get(mode, "Unknown")
+        self.operating_mode_pub.publish(Int32(data=mode))
+        
+    def send_teleop_command(self, command: str):
+        cmd = Twist()
+        if command == 'f':
+            cmd.linear.x = 0.5
+        elif command == 'b':
+            cmd.linear.x = -0.5
+        elif command == 'r':
+            cmd.angular.z = -0.5
+        elif command == 'l':
+            cmd.angular.z = 0.5
+        self.teleop_pub.publish(cmd)
+        
+    def get_time_now(self):
+        return self.get_clock().now().to_msg().sec
+    
+    def get_timeout_counter(self):
+        return self.timeout_counter
+
+
+# ============================================================
+# ROS2 SPIN THREAD
+# ============================================================
+
+def ros_spin():
+
+    global ros2_interface
+    
+    if not rclpy.ok():
+        rclpy.init()
+
+    ros2_interface = ROS2Interface()
+    executor = SingleThreadedExecutor()
+    executor.add_node(ros2_interface)
+
+    try:
+        while rclpy.ok():
+            executor.spin_once(timeout_sec=0.05)
+    finally:
+        executor.remove_node(ros2_interface)
+        ros2_interface.destroy_node()
+
+
+def add_log_entry(log_container, text, text_color_class):
+    """Appends a new log entry with a real-time timestamp and auto-scrolls."""
+    timestamp = datetime.now().strftime("[%H:%M:%S]")
+    with log_container:
+        with ui.row().classes('items-center gap-2 mb-1'):
+            ui.label(timestamp).classes('text-gray-500 font-mono text-sm font-bold')
+            ui.label(text).classes(f'{text_color_class} font-mono text-sm')
+            
+# Start thread exactly once
+_ros_thread_started = False
+
+if not _ros_thread_started:
+    _ros_thread_started = True
+    threading.Thread(
+        target=ros_spin,
+        daemon=True,
+        name='ros2_spin',
+    ).start()
+
+########################################################################################
+
+@ui.page('/')
+def main_page():
+    
+    # --------------------------------------------------------
+    # LAYOUT
+    # --------------------------------------------------------
+    ui.query('body').classes(add='light-theme')
+
+    with ui.element('div').classes('main-container'):
+        
+        def analyze_greenhouse():
+
+            prompt = f"""
+            Greenhouse Status
+        
+            Plants:
+            {plants}
+
+            Bugs:
+            {bugs}
+
+            Sensors:
+            {sensors_new}
+
+            Provide:
+            1. Overall health assessment
+            2. Potential issues
+            3. Recommended actions only in terms of what can be done in the greenhouse and not in terms of code update
+            """
+            response = client.responses.create(
+                model="llama-3.1-8b-instant",
+                input=prompt
+            )
+
+            analysis_label.set_content(response.output_text)
+
+
+        def run_analysis():
+            threading.Thread(
+                target=analyze_greenhouse,
+                daemon=True
+            ).start()
+        
+        with ui.dialog() as dialog, ui.card():
+            run_analysis()
+            analysis_label = ui.markdown('No analysis available')
+            ui.button('Close', on_click=dialog.close)
+        
+        with ui.card().classes('side-card light-card items-stretch'):
+            ui.label('Robot Status').classes('title text-left')
+            robot_status_display = ui.label('Status: Offline').style('font-size:15px;')
+            ui.separator()
+            ui.label('Operating Mode').classes('text-lg')
+            mode_display = ui.label('No Mode Selected').style('font-size:15px; color:grey;')
+            teleop_display = ui.label('').classes('whitespace-pre-line').style('font-size:15px')
+  
+            def set_mode(label, message):
+                mode_display.set_text(label)
+                ros2_interface.set_operating_mode(list(OPERATING_MODE.keys())[list(OPERATING_MODE.values()).index(label)])
+                if current_operating_mode == "Manual Mode":
+                    teleop_display.set_text('F: Move Forward\nB: Move Backward\nR: Rotate Right\nL: Rotate Left')
+                else:
+                    teleop_display.set_text('')
+                ui.notify(message)
+                alert_msgs.append(message)
+                
+            # Handling keyboard teleop in manual mode    
+            def handle_key(e: events.KeyEventArguments):
+                command = None
+                if current_operating_mode == "Manual Mode":
+                    if e.key=='f' and e.action.keyup:
+                        command = 'f'
+                        ui.notify('Going forward')
+                    elif e.key=='b' and e.action.keyup:
+                        command = 'b'
+                        ui.notify('Going backward')
+                    elif e.key=='r' and e.action.keyup:
+                        command = 'r'
+                        ui.notify('Rotating right')
+                    elif e.key=='l' and e.action.keyup:
+                        command = 'l'
+                        ui.notify('Rotating left')
+                    ros2_interface.send_teleop_command(command)
+                    
+            def save_data():
+                with open(plant_data_file, 'w') as file:
+                    yaml.safe_dump(plants, file, default_flow_style=False, sort_keys=False)
+                
+                with open(bug_data_file, 'w') as file:
+                    yaml.safe_dump(bugs, file, default_flow_style=False, sort_keys=False)
+                    
+                add_log_entry(warnings_scroll, "Data saved successfully", "text-amber-600")
+
+            keyboard = ui.keyboard(on_key=handle_key)
+            
+            operating_mode_dropdown = ui.dropdown_button('Select Operating Mode', auto_close=True)
+                
+            with operating_mode_dropdown:
+                ui.item('Measurement Mode', on_click=lambda: set_mode('Measurement Mode', "Started measurement mode"))
+                ui.item('Manual Mode', on_click=lambda: set_mode('Manual Mode', "Started manual mode"))
+                ui.item('Pause Mission', on_click=lambda: set_mode('Pause Mission', "Pausing mission"))
+                ui.item('Return Home', on_click=lambda: set_mode('Return Home', "Returning home"))
+                ui.item('Reset', on_click=lambda: set_mode('Reset', "Resetting system"))
+                ui.item('Shutdown', on_click=lambda: set_mode('Shutdown', "Shutting down"))
+
+            ui.separator()
+
+            ui.label('Battery Level').classes('text-lg')
+            battery_progress_bar = ui.linear_progress(value=0.0, show_value=False).props('size=12px rounded instant-feedback')
+            battery_label = ui.label('N/A').style('font-size:12px; color:grey;')
+
+            ui.separator()
+
+            # ── Camera topic selector ────────────────────────────────────
+            ui.label('Camera Feed').classes('text-lg')
+
+            current_topic = ui.label(camera['topic']).style(
+                'font-size:11px; color:grey; margin-bottom:6px;'
+            )
+
+            def switch_camera(camera: str):
+                
+                ros2_interface.switch_topic(CAMERA_TOPICS[camera])
+                current_topic.set_text(camera)
+                add_log_entry(alerts_scroll, f'Switched to {camera}', "text-amber-600")
+                #ui.notify(f'Switched to {topic}')
+                
+            camera_dropdown = ui.dropdown_button('Select Camera', auto_close=True).props('no-caps')
+
+            with camera_dropdown:
+                for key, value in CAMERA_TOPICS.items():
+                    ui.item(
+                        key,
+                    on_click=lambda t=key: switch_camera(t)
+                    )
+
+            # ── Camera image display ─────────────────────────────────────
+            camera_img = ui.html('''
+            <img
+                id="camera-feed"
+                style="
+                width:100%;
+                height:220px;
+                border-radius:8px;
+                object-fit:cover;
+                background:#1f2937;
+                "
+            />
+            ''')
+
+            def update_camera():
+
+                if camera['frame'] is None:
+                    return
+
+                ui.run_javascript(f'''
+                    const img = document.getElementById("camera-feed");
+
+                    if (img) {{
+                        img.src = "data:image/jpeg;base64,{camera['frame']}";
+                    }}
+                ''')
+            
+            ui.separator()
+            save_button = ui.button('SAVE DATA', on_click=lambda: save_data()).classes('w-full')
+            
+            ui.separator()
+            
+            llm_button = ui.button('Analyse Data', on_click=dialog.open)
+            
+            ui.separator()
+            
+            def logout() -> None:
+                app.storage.user.clear()
+                    
+                with open(plant_data_file, 'w') as file:
+                    yaml.safe_dump(plants, file, default_flow_style=False, sort_keys=False)
+                
+                with open(bug_data_file, 'w') as file:
+                    yaml.safe_dump(bugs, file, default_flow_style=False, sort_keys=False)
+                    
+                ui.notify('Logged out successfully', color='positive')
+                ui.navigate.to('/login')
+
+            with ui.column().classes('items-center'):
+                ui.button(on_click=logout, icon='logout').props('outline round')
+                
+            
+        # Get any clicked point
+        greenhouse  = ui.image('map_hmi_updated.png').classes('map-panel').style('position: relative; display: inline-block; overflow: visible !important;')
+
+            # for click testing
+        greenhouse.on('click', lambda e: ros2_interface.go_to_pos(e.args["clientX"], e.args["clientY"]))
+
+        with greenhouse:
+            
+            
+            def draw_plants():
+                
+                # Plotting plants
+                for plant in plants:
+                    status_text = 'Bloomed' if plant['bloomed'] else 'Not Bloomed'
+                    pid = plant['id']
+                    filename = plant['color'].lower() + '_flower.png'
+                    animation_class = 'blooming' if plant['bloomed'] else ''
+                
+                    with ui.element('div').style(
+                        f'position:absolute;'
+                        f'left:{plant["x"]}px;'
+                        f'top:{plant["y"]}px;'
+                        f'z-index:10;'
+                        f'overflow:visible !important; '
+                    ).classes('entity'):
+                     
+                        ui.image(filename).style(
+                            'width:23px;'
+                            'height:23px;'
+                            'cursor:pointer;'
+                            'background: transparent;'
+                            'transition: transform 0.2s ease;'
+                            'overflow:visible !important;'
+                        ).classes(animation_class)
+                    
+                        with ui.element('div').classes('tooltip').props('pointer-events-auto'):
+                        
+                                ui.html(f'<b>Plant {pid}</b><br>Status: {status_text}')
+                                ui.html(f'Color: {plant["color"]}')
+
+                                ui.button(
+                                    'Go To Position',
+                                    on_click=lambda p=plant: ros2_interface.go_to_pos(p['x'], p['y'])
+                                ).classes('tooltip-btn')
+
+            def draw_sensors():
+                for sensor in sensors_new:
+                    if sensor['id'] == 11:
+                        print(sensor)
+
+                    sid = sensor['id']
+
+                    default_mode = get_default_sensor_mode(sensor)
+
+                    if default_mode is None:
+                        continue
+
+                    with ui.element('div').style(
+                        f'position:absolute;'
+                        f'left:{sensor["x"]}px;'
+                        f'top:{sensor["y"]}px;'
+                        f'z-index:10;'
+                        f'overflow:visible !important;'
+                    ).classes('entity'):
+
+                        # ui.image('sensor.png').style(
+                        #     'width:20px;'
+                        #     'height:20px;'
+                        #     'cursor:pointer;'
+                        #     'background: transparent;'
+                        #     'transition: transform 0.2s ease;'
+                        #     'overflow:visible !important;'
+                        # )
+
+                        # with ui.element('div').classes('tooltip').props('pointer-events-auto'):
+                        # Dialog for this sensor
+                        with ui.dialog() as sensor_dialog, ui.card().style(
+                            'width:500px; max-width:90vw;'
+                        ):
+
+                            ui.row().classes('w-full justify-between items-center')
+
+                            ui.label(f'Sensor {sid}').classes('text-lg font-bold')
+
+                            ui.button(
+                                icon='close',
+                                on_click=sensor_dialog.close
+                            ).props('flat round')
+
+                            available_modes = [
+                                mode
+                                for mode in SENSOR_MODES
+                                if mode in sensor and len(sensor[mode]) > 0
+                            ]
+
+                            default_mode = available_modes[0]
+
+                            mode_selector = ui.select(
+                                options=available_modes,
+                                value=default_mode,
+                                label='Sensor Mode',
+                            ).classes('w-full')
+
+                            chart = ui.echart({
+                                'backgroundColor': 'transparent',
+                                'animation': True,
+                                'tooltip': {'trigger': 'axis'},
+                                'xAxis': {
+                                    'type': 'category',
+                                    'data': sensor['time'],
+                                    'boundaryGap': False,
+                                },
+                                'yAxis': {
+                                    'type': 'value',
+                                    'name': default_mode,
+                                },
+                                'series': [{
+                                    'data': sensor[default_mode],
+                                    'type': 'line',
+                                    'smooth': True,
+                                    'areaStyle': {},
+                                }],
+                            }).style('height:350px')
+
+                            ui.separator()
+
+                            ui.button(
+                                'Take Reading',
+                                on_click=lambda s=sensor: ros2_interface.go_to_pos(
+                                    s['x'],
+                                    s['y'],
+                                ),
+                            ).classes('w-full').props(
+                                'no-caps unelevated'
+                            )
+
+                            def mode_changed(chart=chart, sensor=sensor, selector=mode_selector):
+
+                                mode = selector.value
+
+                                chart.options['xAxis']['data'] = sensor['time']
+                                chart.options['series'][0]['data'] = sensor[mode]
+                                chart.options['yAxis']['name'] = mode
+
+                                chart.update()
+
+                            mode_selector.on(
+                                'update:model-value',
+                                lambda _: mode_changed()
+                            )
+
+                            sensor_charts.append({
+                                'chart': chart,
+                                'sensor': sensor,
+                                'mode_selector': mode_selector,
+                            })
+
+                        # sensor icon
+                        ui.image('sensor.png').style(
+                            'width:20px;'
+                            'height:20px;'
+                            'cursor:pointer;'
+                        ).on(
+                            'click',
+                            lambda d=sensor_dialog: d.open()
+                        )
+
+            def draw_bugs():
+                for bug in bugs:
+                    bid = bug['id']
+                    with ui.element('div').style(
+                        f'position:absolute;'
+                        f'left:{bug["x"]}px;'
+                        f'top:{bug["y"]}px;'
+                        f'z-index:10;'
+                        f'overflow:visible !important; '
+                    ).classes('entity'):
+
+                        ui.image('bug.png').style(
+                            'width:20px;'
+                            'height:20px;'
+                            'cursor:pointer;'
+                            'background: transparent;'
+                            'transition: transform 0.2s ease;'
+                            'overflow:visible !important;'
+                        )
+
+                        with ui.element('div').classes('tooltip').props('pointer-events-auto'):
+                            ui.html(f'<b>Bug {bid}</b>')
+                            ui.button(
+                                'Kill Bug',
+                                on_click=lambda b=bug: ros2_interface.go_to_pos(b['x'], b['y'])
+                            ).classes('tooltip-btn').props('no-caps unelevated')
+
+            @ui.refreshable
+            def draw_content_area():
+                global active_tab
+
+            # This container wraps your changing data
+                with ui.element('div').classes('map-panel'):
+                    if active_tab == 'Flowers':
+                        # Call your original flower plotting logic here
+                        draw_plants()
+                        #add_log_entry(alerts_scroll, f'Updated flower plots', "text-amber-600")
+                        #ui.notify("Updated flower plots")
+                        # e.g., draw_plants() 
+            
+                    elif active_tab == 'Pests':
+                        draw_bugs()
+                        #add_log_entry(alerts_scroll, f'Updated pests plots', "text-amber-600")
+                        #ui.notify("Updated pests plots")
+            
+                    elif active_tab == 'Sensors':
+                        draw_sensors()
+                        #add_log_entry(alerts_scroll, f'Updated sensor plots', "text-amber-600")
+                        #ui.notify("Updated sensor plots")
+                        
+            ui.element('div').classes('greenhouse-border')
+            
+            def set_active_tab(tab):
+                global active_tab
+                active_tab = tab
+                draw_content_area.refresh()
+
+            #ui.html('<div class="home-station">Home</div>')
+
+
+            # for bx, by in beds:
+            #     ui.html(
+            #         f'<div class="plant-bed" '
+            #         f'style="left:{bx}px; top:{by}px;"></div>'
+            #     )
+            ui.add_css('''
+                @layer utilities {
+                    .entity{
+                        background: transparent !important;
+                        background-color: transparent !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                    }
+                }
+            ''')
+            
+            draw_content_area()
+            
+            #draw_plants()
+            
+            #draw_sensors()
+            
+            # Plotting bugs
+            #draw_bugs()
+
+
+            
+            # ------------------------------------------------
+            # ROBOT MARKER
+            # A single persistent <div> is injected once.
+            # The timer updates only its style via JS — no
+            # innerHTML replacement, so the element is never
+            # destroyed and re-created on every tick.
+            # ------------------------------------------------
+
+            # ui.html('''
+            # <div
+            #     id="robot-marker"
+            #     class="robot"
+            #     style="
+            #         left:50%;
+            #         top:50%;
+            #     ">
+            #     <div class="tooltip">
+            #         <b>Robot</b>
+            #         <br>
+            #     <span id="robot-pos">
+            #         Position: (50%, 50%)
+            #     </span>
+            #     </div>
+            # </div>
+            # ''')
+            ui.html('''
+            <div
+                id="robot-marker"
+                class="robot"
+                style="
+                    left:50%;
+                    top:50%;
+                    cursor: pointer;
+                "
+                onmouseenter="document.getElementById('robot-tooltip').style.display='block'"
+                onmouseleave="document.getElementById('robot-tooltip').style.display='none'"
+            >
+                <div id="robot-tooltip" class="tooltip-js" style="display: none; pointer-events: auto;">
+                    <b>Robot</b>
+                    <br>
+                <span id="robot-pos">
+                    Position: (50%, 50%)
+                </span>
+                </div>
+            </div>
+            ''')
+
+        with ui.row().classes('w-full items-center gap-4'):
+            ui.button(
+                'Display Flowers',
+                on_click=lambda: set_active_tab('Flowers')
+            ).props('no-caps unelevated').classes('flower-tab')
+
+            ui.button(
+                'Display Pests',
+                on_click=lambda: set_active_tab('Pests')
+            ).props('no-caps unelevated').classes('bug-tab')
+
+            ui.button(
+                'Display Sensors',
+                on_click=lambda: set_active_tab('Sensors')
+            ).props('no-caps unelevated').classes('sensor-tab')
+        
+        # Assuming your main map element is right above this container...
+        with ui.row().classes('w-full no-wrap gap-4 mt-4'):
+    
+            # 1. ALERTS BOX (Critical Issues)
+            with ui.card().classes('flex-1 alert-panel'):
+                ui.label('🚨 Alerts').classes('text-lg font-bold text-gray-800 border-b pb-2 w-full')
+        
+                # Scroll area defining a fixed height. Content inside will scroll dynamically.
+                alerts_scroll = ui.scroll_area().classes('h-[150px] w-full mt-2')
+
+
+            # 2. WARNINGS BOX (System Notices)
+            with ui.card().classes('flex-1 warning-panel'):
+                ui.label('⚠️ Log').classes('text-lg font-bold text-gray-800 border-b pb-2 w-full')
+        
+                # Scroll area matching the height of the alerts box
+                warnings_scroll = ui.scroll_area().classes('h-[150px] w-full mt-2')
+ 
+    
+
+    def update_robot():
+        global robot_status, warning_msgs, alert_msgs, battery_level
+    
+        if robot_status == 1:
+            robot_status_display.set_text('Status: Online')
+            robot_status_display.classes(replace='text-green font-bold')
+            operating_mode_dropdown.enable()
+            x = robot_pos['x']
+            y = robot_pos['y']
+            
+            #x, y = ros2_interface.real_to_pixel_transform(0,-3)
+            #print(x,y)
+            
+            theta = robot_pos['theta']
+            ui.run_javascript(f"""
+                var el = document.getElementById('robot-marker');
+                if (el) {{
+                    el.style.left = '{x:.2f}px';
+                    el.style.top  = '{y:.2f}px';
+                    el.style.background = '#2563eb';
+                    el.style.transform = 'translate(-50%, -50%) rotate({theta:.1f}deg)';
+                }}
+                var pos = document.getElementById('robot-pos');
+                if (pos) {{
+                    pos.textContent =
+                        'Position: ({x:.1f}%, {y:.1f}%)';
+                }}
+            """)
+            camera_dropdown.enable()
+            save_button.enable()
+            
+            #battery_level = 0.5  # Placeholder until we get real data from ROS2
+            
+            if battery_level < 0.2:
+                battery_progress_bar.props('color=red')
+            else:
+                battery_progress_bar.props('color=green')
+            
+            battery_progress_bar.set_value(battery_level)
+            battery_label.set_text(f'{battery_level*100:.0f}%')
+            
+            # if ros2_interface.get_time_now() - ros2_interface.get_timeout_counter() > TIMEOUT_STATUS_OFFLINE:
+            #     robot_status = 0
+            #     alert_msgs.append("Robot connection timed out")
+            #     warning_msgs.append("Robot connection lost")
+            
+        else:
+            robot_status_display.set_text('Status: Offline')
+            robot_status_display.classes(replace='text-red font-bold')
+            operating_mode_dropdown.disable()
+            ui.run_javascript("""
+                var el = document.getElementById('robot-marker');
+                if (el) {
+                    el.style.background = '#888888';
+                    el.style.boxShadow = '0 0 20px rgba(136,136,136,0.45)';
+                }
+            """)
+            camera_dropdown.disable()
+            save_button.disable()
+            battery_level = 0.0
+            battery_progress_bar.props('color=grey')
+            battery_progress_bar.set_value(0.0)
+            battery_label.set_text('N/A')
+            
+            
+        
+        alert_msgs_copy = alert_msgs.copy()
+        alert_msgs.clear()
+        for _ in alert_msgs_copy:
+            msg = alert_msgs_copy.pop(0)
+            add_log_entry(alerts_scroll, msg, "text-red-600")
+            print("ALERT:", msg)
+        
+        
+        for msg in warning_msgs:
+            add_log_entry(warnings_scroll, msg, "text-amber-600")
+        warning_msgs.clear()    
+            
+    # Update sensor charts with new random data for demonstration
+    def update_env_data():
+        global active_tab
+
+        if robot_status:
+            
+            draw_content_area.refresh()
+
+            # for item in sensor_charts:
+
+            #     data = item['data']
+            #     chart = item['chart']
+
+            #     data.append(round(data[-1] + random.uniform(-0.5, 0.5),2))
+
+            #     data.pop(0)
+
+            #     chart.options['series'][0]['data'] = data
+
+            #     chart.update()
+
+            for item in sensor_charts:
+
+                chart = item['chart']
+                sensor = item['sensor']
+                selector = item['mode_selector']
+
+                mode = selector.value
+
+                if mode not in sensor:
+                    continue
+
+                chart.options['xAxis']['data'] = sensor['time']
+                chart.options['series'][0]['data'] = sensor[mode]
+
+                chart.update()
+            
+
+            
+
+    ui.timer(0.1, update_robot)
+    ui.timer(0.1, update_camera)
+    ui.timer(10.0, update_env_data)
+
+

@@ -1,0 +1,43 @@
+# Arm pose configurations for the MIRTE master arm controller.
+# Joint order must match the controller: shoulder_pan_joint, shoulder_lift_joint, elbow_joint, wrist_joint
+# Positions are in degrees. Tune these values for the physical robot.
+
+joint_names:
+  - shoulder_pan_joint
+  - shoulder_lift_joint
+  - elbow_joint
+  - wrist_joint
+
+# Default time allowed for each motion (seconds). Can be overridden per pose.
+motion_duration_sec: 3.0
+
+poses:
+  home:
+    positions: [0.0, 0.0, 0.0, 0.0]
+    duration_sec: 1.5
+
+  base:
+    positions: [0.0, 65.0, -100.0, 70.0]
+    duration_sec: 1.5
+
+  scan:
+<<<<<<< HEAD
+=======
+    positions: [-80.9, 3.0, -31.0, 90.0]
+    duration_sec: 1.5
+
+  scan_a:
+>>>>>>> a65079480009c4a4e24abaad89605ef18e31d20f
+      positions: [-80.9, 3.0, -31.0, -90.0]
+      duration_sec: 1.5
+
+  # Spray sequence waypoints — tune positions for the physical robot
+  sequ_home:
+    positions: [-90.0, 65.0, -100.0, 0.0]
+    duration_sec: 1.5
+  sequ_p1:
+    positions: [-90.0, -5.0, -65.0, 0.0]
+    duration_sec: 1.5
+  sequ_p2:  
+    positions: [-90.0, -10.0, -115.0, 0.0]
+    duration_sec: 1.5

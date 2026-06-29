@@ -5,8 +5,14 @@ src/clearpath_mecanum_drive_controller
 src/gazebo_grasp_fix
 src/mirte-gazebo
 src/mirte-ros-packages
+src/PlayStation-JoyInterface-ROS2
+src/flower_perception/datasets
+src/flower_perception/runs
+src/lupin_greenhouse_ros_group17
+src/popf
 build
 install
 log
 .DS_Store
 pixi.lock
+**/__pycache__/
