@@ -184,7 +184,7 @@ sets automatically on activation (see tools/popf_env.sh) to
 
 Then, the waypoints must be put in /gh_twin_data_storage/config/waypoint.yml
 
-With the "typedb server" open in one terminal, open a terminal to run the greenhouse simulation:
+With the "typedb server" open in one terminal, open a terminal to run the greenhouse simulation (Running on the MIRTE itself is explained below):
 
 ```shell
 source install/setup.bash
@@ -198,13 +198,20 @@ source install/setup.bash
 ros2 launch gh_twin_data_storage task_scheduler.launch.py
 ```
 
-And the gui:
+And the GUI:
 
 ```shell
 cd src/gh_twin/gui/
 python3 main.py
 ```
-Then in the gui select "measurement mode", and the planner should start a plan and finish it a plan.
+Then in the gui select "measurement mode", and the planner should start a plan and finish it.
+
+To run on the MIRTE, the `greenhouse_launch.xml` does not need to be run. Only the mentioned TypeDB setup steps must be taken, the GUI must be run, and the `task_scheduler_hardware.launch.py` must be run.
+
+```shell
+source install/setup.bash
+ros2 launch gh_twin_data_storage task_scheduler_hardware.launch.py
+```
 
 
 
