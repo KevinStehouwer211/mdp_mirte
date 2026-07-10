@@ -1,116 +1,198 @@
 # MIRTE ROS2 Workspace for RO47007 with Pixi
 
+![ROS 2](https://img.shields.io/badge/ROS2-Humble-22314E?logo=ros)
+![Build](https://img.shields.io/badge/Build-colcon-2C7A7B)
+![Env](https://img.shields.io/badge/Env-Pixi-F28C28)
+![Robot](https://img.shields.io/badge/Robot-MIRTE%20Master-3B82F6)
 
-## building
+This workspace contains the ROS 2 setup for simulation, autonomous planning, and control of MIRTE Master in the RO47007 context.
 
-If you don't have Pixi, install it: [Pixi: Installation](https://pixi.prefix.dev/latest/installation/).
+## Table of Contents
 
-Then, in a linux terminal:
+- [Demos](#demos)
+- [Packages](#packages)
+- [Prerequisites](#prerequisites)
+- [1. Build the Workspace](#1-build-the-workspace)
+- [2. Run in Simulation](#2-run-in-simulation)
+- [3. Work with the Physical Robot](#3-work-with-the-physical-robot)
+- [4. Set Up TypeDB](#4-set-up-typedb)
+- [5. Run the Autonomous Planner](#5-run-the-autonomous-planner)
+- [Troubleshooting](#troubleshooting)
+
+## Demos
+
+A quick look at the different parts of the system in action.
+
+### Perception
+
+![Flower perception](docs/media/flower_perception.gif)
+
+Flower detection, tracking, and triangulation from the robot's camera.
+
+### Autonomous Navigation
+
+![Autonomous navigation](docs/media/nav_sidebyside.gif)
+
+Autonomous waypoint navigation through the greenhouse.
+
+### SLAM
+
+![SLAM](docs/media/slam_gui.gif)
+
+Mapping the greenhouse with SLAM.
+
+### Teleoperation
+
+![Teleoperation](docs/media/teleop.gif)
+
+Manual driving of the MIRTE Master base with keyboard/joystick teleop.
+
+### Monitoring GUI
+
+![Monitoring GUI](docs/media/data_display.gif)
+
+The user-facing GUI showing flowers, sensors, pests, alerts, and the live log.
+
+## Packages
+
+Each ROS 2 package under `src/` has its own README with full node/topic/launch details:
+
+| Package | Description |
+|---|---|
+| [`gh_twin`](src/gh_twin/README.md) | Gazebo simulation, SLAM, Nav2 navigation, joystick teleoperation, and the operator GUI |
+| [`gh_twin_data_storage`](src/gh_twin_data_storage/README.md) | TypeDB world-state storage and the PDDL/POPF-based autonomous task scheduler |
+| [`gh_twin_msgs`](src/gh_twin_msgs/README.md) | Shared custom message definitions (`Flower`, `Pest`, `Sensor`) |
+| [`flower_perception`](src/flower_perception/README.md) | YOLOv8 flower/pest detection, tracking, and multi-view 3D triangulation |
+| [`mirte_indicator_devices`](src/mirte_indicator_devices/README.md) | Audio and LED feedback devices (not yet wired into the rest of the system) |
+
+## Prerequisites
+
+> [!NOTE]
+> Install Pixi first: [Pixi Installation Guide](https://pixi.prefix.dev/latest/installation/)
+
+Required tools:
+
+- Linux terminal
+- `xterm`
+- `git`
+
+## 1. Build the Workspace
+
+### 1.1 Clone and install environment
 
 ```shell
-# We need xterm installed
 sudo apt install xterm
 
-# clone this repository somewhere. Here I do it in $HOME, but that is not
-# required. The workspace could be anywhere
 git clone git@gitlab.tudelft.nl:cor/ro47007/2026/group_17/mdp_mirte_ws.git $HOME/ro47007_mirte_ws
 cd $HOME/ro47007_mirte_ws
 
-# let pixi do its thing (this could take a while)
 pixi install
 ```
 
-if there were no errors, try fetching the packages (or `pixi run fetch` from within `ro47007_mirte_ws`):
+### 1.2 Fetch repositories
 
 ```shell
 pixi run vcs import --input $HOME/ro47007_mirte_ws/repos.repos $HOME/ro47007_mirte_ws/src
 ```
 
-No errors? Ignore some unneeded packages:
+### 1.3 Ignore unneeded packages
 
 ```shell
 touch src/mirte-ros-packages/mirte_{bringup,telemetrix_cpp,teleop,test,zenoh_setup}/COLCON_IGNORE
 ```
 
-No errors? Try building the workspace, first enter the pixi shell which contains all the installed dependencies:
+### 1.4 Build
 
 ```shell
 pixi shell
 ```
 
-Next, build the workspace:
-
 ```shell
 colcon build
 ```
 
-note: depending on the machine this runs on, it can take quite some time.
+> [!TIP]
+> Build time can be significant depending on machine performance.
 
-If you want to clean the build artifacts (build, install, log directories) from within the pixi shell, you can use:
+### 1.5 Clean build artifacts (optional)
+
 ```shell
 pixi run ws-clean
 ```
 
-To clean first and then build, use:
+Clean and build in one command:
+
 ```shell
 pixi run clean-build
 ```
 
-## running
+## 2. Run in Simulation
 
-If the build was successful, try starting the greenhouse simulation launch file (in the same `pixi shell` session):
+### 2.1 Start greenhouse simulation
+
+```shell
+pixi shell
+```
 
 ```shell
 source install/setup.bash
 ros2 launch gh_twin greenhouse_launch.xml
 ```
 
-this should start up only Gazebo with the MIRTE Master in the greenhouse environment.
+> [!NOTE]
+> This launch starts Gazebo with the MIRTE Master in the greenhouse world.
 
-To teleop the robot, try starting the teleop node (from another `pixi shell` session):
+### 2.2 Keyboard teleop
+
+Run from a second terminal:
+
+```shell
+pixi shell
+```
+
 ```shell
 source install/setup.bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/mirte_base_controller/cmd_vel_unstamped
 ```
 
-To use slam, combined with teleop, try launching the slam launch file. (Make sure the teleop node is closed since this slam launch will use its own teleop node.)
+### 2.3 SLAM launch
+
+```shell
+pixi shell
+```
 
 ```shell
 source install/setup.bash
 ros2 launch gh_twin slam.launch.py
 ```
 
+> [!IMPORTANT]
+> Close `teleop_twist_keyboard` before launching SLAM, because the SLAM launch starts its own teleop flow.
 
-## working with the physical robot
+## 3. Work with the Physical Robot
 
-Working with a physical MIRTE Master robot and your pixi env is straightforward via ROS2. First, connect to the robot either via the Wifi AP or an ethernet cable. 
+Connect to the MIRTE Master via Wi-Fi AP or Ethernet, then open your environment:
 
-You should now be able to see the topics of the robot:
 ```shell
+pixi shell
+```
+
+```shell
+source install/setup.bash
 ros2 topic list
 ```
 
-note: every new pixi session requires you to set the domain id.
+> [!TIP]
+> If topics are visible, connectivity and ROS graph discovery are working.
 
+> [!NOTE]
+> Every new pixi session requires you to set the domain ID.
 
-## troubleshooting
+## 4. Set Up TypeDB
 
-* **problems with Python when building**: Make sure that you fully deactivate Anaconda or other virtual Python environment managers when trying to set up this repository. The symbolic links may interfere with Pixi and cause problems when compiling your workspace.
+The autonomous planner uses a TypeDB knowledge base to store environment data that PDDL uses for planning.
 
-* **Shells other than Bash** If you are using shells other than Bash, e.g., ZSH, make sure to source the correct ROS2 setup file in the folder `install`, e.g., `setup.zsh`.
-
-* **Pixi environment problems**: If you encounter Pixi environment problems, you can rebuild your Pixi environment by removing the environment using `pixi clean` and reinstalling it. 
-
-* **Missing packages in Pixi**: This Pixi environment configuration does not provide all ROS2 packages you would find in a ROS2 Desktop Full Install. You can install additional packages using Pixi's install routine, e.g. to install turtle sim use `pixi add ros-humble-turtlesim`. This will install the package and automatically add it to your Pixi manifest file `pixi.toml`. Note: not all packages might be available via Pixi for your system. See the [Pixi documentation](https://pixi.prefix.dev/latest/tutorials/ros2/) for more information.
-
-* **Inconsistent results across your group?** Make sure to use the same configuration of your workspace. Look at `git diff` to see changes. Moreover, we recommend using Pixi's lock file `pixi.lock`. This file pins the exact versions of dependencies installed in your Pixi environment. You can share this lock file within your group to detect inconsistencies and install the same dependency versions across your group.
-
-
-## TypeDB setup
-
-For the autonomous planning and executing of actions, the TypeDB knowledge base must be set up to store environment data, which PDDL can use for planning.
-
-First TypeDB must be installed with the following commands in a terminal:
+### 4.1 Install TypeDB
 
 ```shell
 sudo apt install software-properties-common apt-transport-https gpg
@@ -121,15 +203,23 @@ sudo apt update
 sudo apt install typedb=2.28.3
 ```
 
-Note it is important to have TypeDB version 2.28.3.
+> [!IMPORTANT]
+> TypeDB version 2.28.3 is required.
 
-In a new terminal: 
+### 4.2 Start the server
+
+In its own terminal:
 
 ```shell
 typedb server
 ```
 
-Then again in a new terminal:
+> [!NOTE]
+> Keep this terminal open. Every function that uses TypeDB requires the server to stay connected.
+
+### 4.3 Create and load the database
+
+In a new terminal:
 
 ```shell
 typedb console --core=localhost:1729
@@ -139,7 +229,7 @@ typedb console --core=localhost:1729
 database create greenhouse
 ```
 
-Load the schema into the database:
+Load the schema:
 
 ```shell
 transaction greenhouse schema write
@@ -147,7 +237,7 @@ source typedb_files/greenhouse-schema.tql
 commit
 ```
 
-Load the data into the database:
+Load the data:
 
 ```shell
 transaction greenhouse data write
@@ -155,108 +245,114 @@ source typedb_files/greenhouse-data.tql
 commit
 ```
 
-To check if this went ok you can use the following commands in the same console:
+Verify the schema loaded correctly:
 
 ```shell
 database schema greenhouse
 ```
 
-The database should now be set up correctly. You only need to go back into the TypeDB console in the future if you want to write or read from the database manually.
+> [!TIP]
+> You only need to go back into the TypeDB console later if you want to read or write the database manually.
 
-NOTE: Everytime you make use of a function that uses TypeDB, you must be connected to the TypeDB server through the "typedb server" terminal.
+## 5. Run the Autonomous Planner
 
-## Running the planner
+POPF is used as the planner.
 
-POPF is used as the planner. It is **not** available via `apt` on this setup (the
-system runs ROS jazzy, while this workspace is a RoboStack/conda ROS humble inside
-pixi, and RoboStack does not package POPF). Instead it is built from source as part
-of the pixi workspace: the `popf` source is listed in `repos.repos` and its build
-dependencies (`flex`, `bison`, COIN-OR) are pixi dependencies.
+> [!NOTE]
+> POPF is **not** available via `apt` on this setup (the system runs ROS Jazzy, while this workspace is a RoboStack/conda ROS Humble inside Pixi, and RoboStack does not package POPF). Instead it is built from source as part of the Pixi workspace: the `popf` source is listed in `repos.repos`, and its build dependencies (`flex`, `bison`, COIN-OR) are Pixi dependencies.
+
+### 5.1 Fetch and build POPF
 
 ```shell
 pixi run fetch          # clones popf (and the rest) into src/
 pixi run build          # builds the workspace, including the popf binary
 ```
 
-The planner node finds the binary via the `POPF_BIN` environment variable, which pixi
-sets automatically on activation (see tools/popf_env.sh) to
-`install/lib/popf/popf`. Override `POPF_BIN` if you have POPF installed elsewhere.
+> [!TIP]
+> The planner node finds the binary via the `POPF_BIN` environment variable, which Pixi sets automatically on activation (see `tools/popf_env.sh`) to `install/lib/popf/popf`. Override `POPF_BIN` if you have POPF installed elsewhere.
 
-Then, the waypoints must be put in /gh_twin_data_storage/config/waypoint.yml
+### 5.2 Configure waypoints
 
-With the "typedb server" open in one terminal, open a terminal to run the greenhouse simulation (Running on the MIRTE itself is explained below):
+Put the waypoints in `gh_twin_data_storage/config/waypoint.yml`.
+
+### 5.3 Run in simulation
+
+With the `typedb server` terminal from [step 4.2](#42-start-the-server) still open:
+
+```shell
+pixi shell
+```
 
 ```shell
 source install/setup.bash
 ros2 launch gh_twin greenhouse_launch.xml
 ```
 
-And a terminal to run the planner.
+In another terminal, run the planner:
+
+```shell
+pixi shell
+```
 
 ```shell
 source install/setup.bash
 ros2 launch gh_twin_data_storage task_scheduler.launch.py
 ```
 
-And the GUI:
+In another terminal, run the GUI:
+
+```shell
+pixi shell
+```
 
 ```shell
 cd src/gh_twin/gui/
 python3 main.py
 ```
-Then in the gui select "measurement mode", and the planner should start a plan and finish it.
 
-To run on the MIRTE, the `greenhouse_launch.xml` does not need to be run. Only the mentioned TypeDB setup steps must be taken, the GUI must be run, and the `task_scheduler_hardware.launch.py` must be run.
+> [!NOTE]
+> In the GUI, select "measurement mode". The planner should then start a plan and finish it.
+
+### 5.4 Run on the physical robot
+
+`greenhouse_launch.xml` is not needed on the physical robot. Complete the [TypeDB setup](#4-set-up-typedb), run the GUI, then launch:
+
+```shell
+pixi shell
+```
 
 ```shell
 source install/setup.bash
 ros2 launch gh_twin_data_storage task_scheduler_hardware.launch.py
 ```
 
+## Troubleshooting
 
+> [!WARNING]
+> Most setup issues are environment conflicts. Start by validating your shell and Python environment.
 
+- **Python/Conda conflicts**
+Deactivate Anaconda or other Python environment managers before building. They can interfere with Pixi and ROS 2 symlinks.
 
+- **Non-Bash shell setup**
+If you use ZSH or another shell, source the matching setup file from `install`, e.g. `setup.zsh`.
 
+- **Pixi environment issues**
+Recreate the Pixi environment with:
 
+```shell
+pixi clean
+pixi install
+```
 
+- **Missing ROS packages in Pixi**
+This workspace does not include every package from ROS Desktop Full. Add missing packages as needed, for example:
 
+```shell
+pixi add ros-humble-turtlesim
+```
 
+See the Pixi ROS 2 docs for details: [Pixi ROS 2 Tutorial](https://pixi.prefix.dev/latest/tutorials/ros2/)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- **Inconsistent setups across team members**
+Compare changes with `git diff` and share lockfiles for reproducibility. Use the same `pixi.lock` to pin dependency versions.

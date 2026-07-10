@@ -6,6 +6,14 @@ The package subscribes to the gripper camera image topic, performs YOLO inferenc
 
 ---
 
+# 🎥 Demo
+
+![Flower perception](../../docs/media/flower_perception.gif)
+
+Flower detection, tracking, and 3D triangulation from the robot's gripper camera.
+
+---
+
 # 📦 Features
 
 * YOLOv8 flower and pest detection
